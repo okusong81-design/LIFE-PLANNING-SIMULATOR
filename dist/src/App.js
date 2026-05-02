@@ -738,10 +738,19 @@ function InfoPage({ page, onBack }) {
   );
 }
 
-function AssetChart({ data, showCashflow, cashflowScale, onStepCashflowScale }) {
+function AxisTitle({ x, y, anchor, title, detail, className }) {
+  return h(
+    "text",
+    { x, y, textAnchor: anchor, className },
+    h("tspan", { x, dy: 0 }, title),
+    h("tspan", { x, dy: 13 }, detail),
+  );
+}
+
+function AssetChart({ data, showCashflow, cashflowScale, onStepCashflowScale, onOpen }) {
   const width = 760;
   const height = 380;
-  const padding = { top: 18, right: showCashflow ? 64 : 18, bottom: 28, left: 62 };
+  const padding = { top: 54, right: showCashflow ? 64 : 18, bottom: 28, left: 62 };
   const values = data.map((row) => row.closingAssets);
   const ticks = getChartTicks(values);
   const max = Math.max(...ticks);
@@ -772,7 +781,21 @@ function AssetChart({ data, showCashflow, cashflowScale, onStepCashflowScale }) 
 
   return h(
     "div",
-    { className: "chartShell", "aria-label": "年齢ごとの資産推移グラフ" },
+    {
+      className: `chartShell${onOpen ? " clickableChart" : ""}`,
+      "aria-label": "年齢ごとの資産推移グラフ",
+      onClick: onOpen || undefined,
+      role: onOpen ? "button" : undefined,
+      tabIndex: onOpen ? 0 : undefined,
+      onKeyDown: onOpen
+        ? (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen();
+            }
+          }
+        : undefined,
+    },
     h(
       "svg",
       { viewBox: `0 0 ${width} ${height}`, role: "img" },
@@ -795,7 +818,8 @@ function AssetChart({ data, showCashflow, cashflowScale, onStepCashflowScale }) 
           h("text", { x: padding.left - 10, y: y + 4, textAnchor: "end", className: "axisLabel" }, manYen(tick)),
         );
       }),
-      h("text", { x: padding.left - 18, y: 9, textAnchor: "end", className: "axisUnit" }, "万円"),
+      h(AxisTitle, { x: padding.left - 18, y: 10, anchor: "end", title: "資産", detail: "（折れ線）", className: "axisTitle" }),
+      h("text", { x: padding.left - 18, y: 40, textAnchor: "end", className: "axisUnit" }, "万円"),
       showCashflow
         ? cashflowTicks.map((tick) => {
             const y = padding.top + chartHeight - ((tick - cashflowMin) / cashflowRange) * chartHeight;
@@ -806,7 +830,8 @@ function AssetChart({ data, showCashflow, cashflowScale, onStepCashflowScale }) 
             );
           })
         : null,
-      showCashflow ? h("text", { x: width - 6, y: 9, textAnchor: "end", className: "cashAxisUnit" }, "百万円") : null,
+      showCashflow ? h(AxisTitle, { x: width - 6, y: 10, anchor: "end", title: "収支", detail: "（棒グラフ）", className: "cashAxisTitle" }) : null,
+      showCashflow ? h("text", { x: width - 6, y: 40, textAnchor: "end", className: "cashAxisUnit" }, "百万円") : null,
       showCashflow ? h("line", { x1: padding.left, x2: width - padding.right, y1: cashflowZeroY, y2: cashflowZeroY, className: "cashflowZeroLine" }) : null,
       showCashflow
         ? h(
@@ -820,7 +845,10 @@ function AssetChart({ data, showCashflow, cashflowScale, onStepCashflowScale }) 
                 {
                   type: "button",
                   className: "axisScaleButton",
-                  onClick: () => onStepCashflowScale(1),
+                  onClick: (event) => {
+                    event.stopPropagation();
+                    onStepCashflowScale(1);
+                  },
                   disabled: cashflowScale >= 100000000,
                   "aria-label": "収支軸を拡大",
                 },
@@ -831,7 +859,10 @@ function AssetChart({ data, showCashflow, cashflowScale, onStepCashflowScale }) 
                 {
                   type: "button",
                   className: "axisScaleButton",
-                  onClick: () => onStepCashflowScale(-1),
+                  onClick: (event) => {
+                    event.stopPropagation();
+                    onStepCashflowScale(-1);
+                  },
                   disabled: cashflowScale <= 10000000,
                   "aria-label": "収支軸を縮小",
                 },
@@ -930,6 +961,8 @@ function App() {
   const [loadedSnapshot, setLoadedSnapshot] = useState(() => getScenarioSnapshot(defaultScenario));
   const [pendingScenarioSelection, setPendingScenarioSelection] = useState(null);
   const [activePage, setActivePage] = useState("app");
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [chartZoom, setChartZoom] = useState(1);
   const projection = useMemo(() => calculateProjection(forecastScenario), [forecastScenario]);
   const selectedAssetRow = projection.rows.find((row) => row.age === Number(selectedAssetAge));
   const selectedBreakdown = getAssetBreakdown(selectedAssetRow, forecastScenario);
@@ -1307,6 +1340,10 @@ function App() {
     }
     setActiveTab("chart");
     document.querySelector(".resultPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function stepChartZoom(direction) {
+    setChartZoom((current) => Number(Math.min(Math.max(current + direction * 0.25, 0.75), 2.5).toFixed(2)));
   }
 
   function storeScenario(namedScenario) {
@@ -1709,7 +1746,7 @@ function App() {
           ),
         ),
         activeTab === "chart"
-          ? h(AssetChart, { data: projection.rows, showCashflow, cashflowScale, onStepCashflowScale: stepCashflowScale })
+          ? h(AssetChart, { data: projection.rows, showCashflow, cashflowScale, onStepCashflowScale: stepCashflowScale, onOpen: () => setIsChartModalOpen(true) })
           : h(
               "div",
               { className: "tableWrap tabTableWrap" },
@@ -1823,6 +1860,38 @@ function App() {
       : null,
     isSalaryModalOpen ? renderSalaryModal() : null,
     isEventModalOpen ? renderEventModal() : null,
+    isChartModalOpen
+      ? h(
+          "div",
+          { className: "modalBackdrop", role: "presentation", onMouseDown: () => setIsChartModalOpen(false) },
+          h(
+            "div",
+            { className: "modalWindow chartModal", role: "dialog", "aria-modal": "true", "aria-labelledby": "chart-modal-title", onMouseDown: (event) => event.stopPropagation() },
+            h(
+              "div",
+              { className: "modalHeader chartModalHeader" },
+              h("h2", { id: "chart-modal-title" }, "資産推移グラフ"),
+              h(
+                "div",
+                { className: "chartZoomControls" },
+                h("button", { type: "button", className: "zoomButton", onClick: () => stepChartZoom(-1), disabled: chartZoom <= 0.75, "aria-label": "グラフを縮小" }, "－"),
+                h("span", null, `${Math.round(chartZoom * 100)}%`),
+                h("button", { type: "button", className: "zoomButton", onClick: () => stepChartZoom(1), disabled: chartZoom >= 2.5, "aria-label": "グラフを拡大" }, "＋"),
+                h("button", { type: "button", className: "modalCloseButton", onClick: () => setIsChartModalOpen(false), "aria-label": "グラフを閉じる" }, "×"),
+              ),
+            ),
+            h(
+              "div",
+              { className: "chartModalViewport" },
+              h(
+                "div",
+                { className: "chartZoomStage", style: { transform: `scale(${chartZoom})`, width: `${100 / chartZoom}%` } },
+                h(AssetChart, { data: projection.rows, showCashflow, cashflowScale, onStepCashflowScale: stepCashflowScale }),
+              ),
+            ),
+          ),
+        )
+      : null,
     detailModal
       ? h(
           "div",

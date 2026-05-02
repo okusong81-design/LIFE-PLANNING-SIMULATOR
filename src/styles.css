@@ -724,6 +724,16 @@ input:focus {
   min-height: 360px;
 }
 
+.clickableChart {
+  cursor: zoom-in;
+}
+
+.clickableChart:focus-visible {
+  outline: 3px solid rgba(47, 125, 107, 0.28);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
 .chartShell svg {
   display: block;
   min-width: 620px;
@@ -805,6 +815,12 @@ input:focus {
   font-weight: 800;
 }
 
+.axisTitle {
+  fill: #17352e;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .depletionAgeLabel {
   fill: #cc5148;
   font-size: 12px;
@@ -821,6 +837,12 @@ input:focus {
   fill: #7c8582;
   font-size: 12px;
   font-weight: 800;
+}
+
+.cashAxisTitle {
+  fill: #4c5a55;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .axisScaleStepper {
@@ -959,6 +981,66 @@ thead th:nth-child(4)::after {
 
 .compactModal {
   width: min(420px, 100%);
+}
+
+.chartModal {
+  width: min(1120px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chartModalHeader {
+  flex-shrink: 0;
+}
+
+.chartZoomControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chartZoomControls span {
+  min-width: 48px;
+  color: #4c5a55;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.zoomButton {
+  width: 34px;
+  min-height: 34px;
+  border: 1px solid #b9cec6;
+  border-radius: 8px;
+  background: #e8f2ee;
+  color: #17352e;
+  font-weight: 900;
+}
+
+.chartModalViewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #edf1ed;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.chartZoomStage {
+  transform-origin: top left;
+}
+
+.chartModal .chartShell {
+  min-height: 0;
+  overflow: visible;
+  cursor: default;
+}
+
+.chartModal .chartShell svg {
+  min-width: 760px;
+  height: auto;
 }
 
 .modalHeader {
