@@ -63,6 +63,12 @@ button:disabled {
   min-width: 0;
 }
 
+.scenarioArea {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
 .eyebrow {
   color: #2f7d6b;
   font-size: 0.78rem;
@@ -99,7 +105,7 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 .pageNavButton {
@@ -180,8 +186,8 @@ input:focus {
 }
 
 .fileSaveButton {
-  min-width: 42px;
-  padding: 0 8px;
+  min-width: 96px;
+  padding: 0 12px;
   font-size: 0.78rem;
   line-height: 1;
   writing-mode: horizontal-tb;
@@ -283,6 +289,38 @@ input:focus {
   background: #20483f;
 }
 
+.shareButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.shareButton {
+  width: 32px;
+  min-height: 32px;
+  border: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.xShareButton {
+  background: #111111;
+}
+
+.facebookShareButton {
+  background: #1877f2;
+  font-family: Arial, sans-serif;
+  font-size: 1rem;
+}
+
+.mobileShareButtons {
+  display: none;
+}
+
 .summaryGrid {
   display: grid;
   grid-template-columns: 1.3fr 1fr 1fr;
@@ -360,6 +398,54 @@ input:focus {
 .safeForecast {
   background: #2f6fab;
   border-color: #2f6fab;
+}
+
+.summaryCard {
+  display: grid;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 8px;
+  color: #ffffff;
+  box-shadow: 0 14px 35px rgba(32, 49, 43, 0.07);
+}
+
+.summaryCard strong,
+.summaryCard span {
+  color: #ffffff;
+  font-size: clamp(1.15rem, 2.3vw, 1.55rem);
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.dangerSummaryCard {
+  background: #c9433b;
+}
+
+.safeSummaryCard {
+  background: #2f6fab;
+}
+
+.resultHintCard {
+  order: 19;
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #b9d6ef;
+  border-radius: 8px;
+  background: #eaf4ff;
+  color: #174063;
+  flex-shrink: 0;
+}
+
+.resultHintCard strong,
+.resultHintCard span {
+  color: #174063;
+  font-size: 0.88rem;
+  font-weight: 900;
+  line-height: 1.65;
 }
 
 .assetAgeMetric {
@@ -807,8 +893,20 @@ input:focus {
   text-shadow: 0 2px 0 rgba(255, 255, 255, 0.9);
 }
 
+.calculatingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.78);
+  color: #17352e;
+  font-size: clamp(1.5rem, 4vw, 2.3rem);
+  font-weight: 900;
+}
+
 .detailNotice {
-  margin: 0 0 10px;
+  margin: 10px 0 0;
   padding: 10px 12px;
   border: 1px solid #f0d6a8;
   border-radius: 8px;
@@ -818,6 +916,22 @@ input:focus {
   font-weight: 800;
   line-height: 1.65;
   flex-shrink: 0;
+}
+
+.bottomDetailNotice {
+  order: 20;
+}
+
+.mobileReturnButton {
+  display: none;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #17352e;
+  color: #ffffff;
+  font-weight: 900;
 }
 
 .chartShell {
@@ -1378,6 +1492,10 @@ thead th:nth-child(4)::after {
     align-items: start;
   }
 
+  .scenarioArea {
+    justify-items: stretch;
+  }
+
   .summaryGrid {
     grid-template-columns: 1fr;
   }
@@ -1389,6 +1507,16 @@ thead th:nth-child(4)::after {
 
   .scenarioTools select {
     flex: 1;
+  }
+
+  .pcShareButtons {
+    display: none;
+  }
+
+  .mobileShareButtons {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
   }
 
   .contentGrid {
@@ -1429,6 +1557,10 @@ thead th:nth-child(4)::after {
     padding: 12px 0 16px;
   }
 
+  .scenarioArea {
+    order: 10;
+  }
+
   .pageNav {
     gap: 6px;
   }
@@ -1440,15 +1572,7 @@ thead th:nth-child(4)::after {
   }
 
   .scenarioTools {
-    flex-wrap: wrap;
-  }
-
-  .scenarioTools select {
-    min-width: 0;
-  }
-
-  .fileSaveButton {
-    flex: 0 0 58px;
+    display: none;
   }
 
   .fieldGrid {
@@ -1556,6 +1680,15 @@ thead th:nth-child(4)::after {
 
   .forecastMetric {
     min-height: 0;
+  }
+
+  .summaryCard strong,
+  .summaryCard span {
+    font-size: 1.05rem;
+  }
+
+  .mobileReturnButton {
+    display: block;
   }
 
   .infoPageHeader {
@@ -2221,6 +2354,109 @@ function getDeficitStartAgeForDepletion(projection) {
   return deficitStartAge ?? projection.depletionAge;
 }
 
+function getRequiredMonthlyExpenseReduction(input) {
+  if (!calculateProjection(input).depletionAge) return 0;
+  let low = 0;
+  let high = Math.max(Number(input.monthlyExpenses) || 0, Number(input.retirementExpenses) || 0, 10000);
+  for (let index = 0; index < 24; index += 1) {
+    const mid = (low + high) / 2;
+    const testInput = {
+      ...input,
+      monthlyExpenses: Math.max(0, (Number(input.monthlyExpenses) || 0) - mid),
+      retirementExpenses: Math.max(0, (Number(input.retirementExpenses) || 0) - mid),
+    };
+    if (calculateProjection(testInput).depletionAge) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+  return Math.ceil(high / 10000);
+}
+
+function getOneManReductionYears(input, projection) {
+  if (!projection.depletionAge) return 0;
+  const testProjection = calculateProjection({
+    ...input,
+    monthlyExpenses: Math.max(0, (Number(input.monthlyExpenses) || 0) - 10000),
+    retirementExpenses: Math.max(0, (Number(input.retirementExpenses) || 0) - 10000),
+  });
+  const extendedAge = testProjection.depletionAge ?? Number(input.lifeExpectancy);
+  return Math.max(0, extendedAge - projection.depletionAge);
+}
+
+function getRetirementExpenseIncreaseByReturn(input) {
+  if (calculateProjection(input).depletionAge) return 0;
+  const improvedInput = withLinkedReturnFields(input, (Number(input.annualReturn) || 0) + 1);
+  let low = 0;
+  let high = Math.max(Number(input.retirementExpenses) || 0, 10000);
+  while (!calculateProjection({ ...improvedInput, retirementExpenses: (Number(input.retirementExpenses) || 0) + high }).depletionAge && high < 3000000) {
+    high *= 2;
+  }
+  for (let index = 0; index < 24; index += 1) {
+    const mid = (low + high) / 2;
+    const testInput = { ...improvedInput, retirementExpenses: (Number(input.retirementExpenses) || 0) + mid };
+    if (calculateProjection(testInput).depletionAge) {
+      high = mid;
+    } else {
+      low = mid;
+    }
+  }
+  return Math.floor(low / 10000);
+}
+
+function AssetSummaryCard({ projection, deficitStartAge }) {
+  const isDepleted = Boolean(projection.depletionAge);
+  const finalBalance = projection.rows.at(-1)?.closingAssets ?? 0;
+  const summaryText = isDepleted
+    ? `資産寿命：${projection.depletionAge}歳　　赤字開始：${deficitStartAge}歳`
+    : `将来安泰です！　　最終残高：${manYen(finalBalance)}万円`;
+  return h(
+    "article",
+    { className: `summaryCard ${isDepleted ? "dangerSummaryCard" : "safeSummaryCard"}` },
+    h("strong", null, summaryText),
+  );
+}
+
+function getSummaryText(projection, deficitStartAge) {
+  const finalBalance = projection.rows.at(-1)?.closingAssets ?? 0;
+  return projection.depletionAge
+    ? `資産寿命：${projection.depletionAge}歳　　赤字開始：${deficitStartAge}歳`
+    : `将来安泰です！　　最終残高：${manYen(finalBalance)}万円`;
+}
+
+function getShareText(projection, deficitStartAge) {
+  const url = "https://life-planning-simulator.vercel.app/";
+  return [
+    "あなたの将来資産の予測結果は以下のとおりです。",
+    "",
+    getSummaryText(projection, deficitStartAge),
+    "",
+    "将来資産シミュレーター",
+    url,
+    "",
+    "１分で将来資産を予測。",
+    "最大50項目の入力項目でより精緻なシミュレーションも可能",
+  ].join("\n");
+}
+
+function ResultHintCard({ projection, forecastScenario, requiredMonthlyReduction, oneManReductionYears, retirementExpenseIncrease }) {
+  const isDepleted = Boolean(projection.depletionAge);
+  return h(
+    "section",
+    { className: "resultHintCard" },
+    isDepleted
+      ? [
+          h("strong", { key: "title" }, `改善のヒント：支出が${requiredMonthlyReduction.toLocaleString("ja-JP")}万円減れば想定寿命まで持ちます。（1万円あたり${oneManReductionYears}歳）`),
+          h("span", { key: "body" }, "支出を見直して再度将来資産を計算しましょう。"),
+        ]
+      : [
+          h("strong", { key: "title" }, `資産運用のヒント：資産（金融資産）の運用利回りが1％上がると老後支出は${retirementExpenseIncrease.toLocaleString("ja-JP")}万円上げることができます。`),
+          h("span", { key: "body" }, "詳細入力で資産の運用方法等を見直して余裕のある老後をシミュレーションしましょう。"),
+        ],
+  );
+}
+
 function AssetForecastMetric({ depletionAge, deficitStartAge }) {
   const isDepleted = Boolean(depletionAge);
   return h(
@@ -2262,6 +2498,7 @@ const infoPages = {
           "シナリオ一覧はブラウザのlocalStorageに保存されます。",
           "保存ボタンでは、現在のシナリオをJSONファイルとして端末に保存できます。",
           "localStorageは同じブラウザ・同じURLで利用される保存領域です。別端末や別ブラウザには自動共有されません。",
+          "スマートフォンでは保存機能は使えません。",
         ],
       },
     ],
@@ -2563,10 +2800,23 @@ function App() {
   const [isDetailInputOpen, setIsDetailInputOpen] = useState(false);
   const [hasForecastRun, setHasForecastRun] = useState(false);
   const [showDefaultDetailNotice, setShowDefaultDetailNotice] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
   const projection = useMemo(() => calculateProjection(forecastScenario), [forecastScenario]);
   const selectedAssetRow = projection.rows.find((row) => row.age === Number(selectedAssetAge));
   const selectedBreakdown = getAssetBreakdown(selectedAssetRow, forecastScenario);
   const deficitStartAge = getDeficitStartAgeForDepletion(projection);
+  const requiredMonthlyReduction = useMemo(
+    () => (projection.depletionAge ? getRequiredMonthlyExpenseReduction(forecastScenario) : 0),
+    [forecastScenario, projection.depletionAge],
+  );
+  const oneManReductionYears = useMemo(
+    () => (projection.depletionAge ? getOneManReductionYears(forecastScenario, projection) : 0),
+    [forecastScenario, projection],
+  );
+  const retirementExpenseIncrease = useMemo(
+    () => (!projection.depletionAge ? getRetirementExpenseIncreaseByReturn(forecastScenario) : 0),
+    [forecastScenario, projection.depletionAge],
+  );
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
@@ -2931,9 +3181,9 @@ function App() {
 
   function runForecast() {
     const nextForecastScenario = { ...scenario };
-    setForecastScenario(nextForecastScenario);
     setHasForecastRun(true);
-    setShowDefaultDetailNotice(areDetailInputsDefault(nextForecastScenario));
+    setIsCalculating(true);
+    setShowDefaultDetailNotice(false);
     const currentSelectedAge = Number(selectedAssetAge);
     const minAge = Number(nextForecastScenario.currentAge);
     const maxAge = Math.max(Number(nextForecastScenario.lifeExpectancy), minAge);
@@ -2942,10 +3192,35 @@ function App() {
     }
     setActiveTab("chart");
     document.querySelector(".resultPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => {
+      setForecastScenario(nextForecastScenario);
+      setShowDefaultDetailNotice(areDetailInputsDefault(nextForecastScenario));
+      setIsCalculating(false);
+    }, 800);
   }
 
   function stepChartZoom(direction) {
     setChartZoom((current) => Number(Math.min(Math.max(current + direction * 0.25, 0.75), 2.5).toFixed(2)));
+  }
+
+  function shareToX() {
+    const text = encodeURIComponent(getShareText(projection, deficitStartAge));
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank", "noopener,noreferrer");
+  }
+
+  function shareToFacebook() {
+    const quote = encodeURIComponent(getShareText(projection, deficitStartAge));
+    const url = encodeURIComponent("https://life-planning-simulator.vercel.app/");
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${quote}`, "_blank", "noopener,noreferrer");
+  }
+
+  function renderShareButtons(className = "") {
+    return h(
+      "div",
+      { className: `shareButtons ${className}`.trim(), "aria-label": "SNSで共有" },
+      h("button", { type: "button", className: "shareButton xShareButton", onClick: shareToX, "aria-label": "Xで共有" }, "X"),
+      h("button", { type: "button", className: "shareButton facebookShareButton", onClick: shareToFacebook, "aria-label": "Facebookで共有" }, "f"),
+    );
   }
 
   function storeScenario(namedScenario) {
@@ -3229,6 +3504,10 @@ function App() {
         h("p", { className: "eyebrow" }, "LIFE PLANNING SIMULATOR"),
         h("h1", null, "将来資産シミュレーター"),
         h("p", { className: "heroCopy" }, "あなたの資産は何歳まで持つ？", h("br"), "１分であなたの将来資産を予測（詳細入力も可）"),
+      ),
+      h(
+        "div",
+        { className: "scenarioArea" },
         h(
           "nav",
           { className: "pageNav", "aria-label": "補助ページ" },
@@ -3237,17 +3516,18 @@ function App() {
           h("button", { type: "button", className: activePage === "disclaimer" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("disclaimer") }, "免責事項"),
           h("button", { type: "button", className: activePage === "privacy" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("privacy") }, "プライバシー"),
         ),
-      ),
-      h(
-        "div",
-        { className: "scenarioTools" },
         h(
-          "select",
-          { value: selectedIndex, onChange: (event) => loadScenario(event.target.value), "aria-label": "保存シナリオ" },
-          h("option", { value: DEFAULT_SCENARIO_ID }, DEFAULT_SCENARIO_NAME),
-          saved.map((item, index) => h("option", { key: item.id || `${item.name}-${index}`, value: `saved:${item.id}` }, item.name)),
+          "div",
+          { className: "scenarioTools" },
+          h(
+            "select",
+            { value: selectedIndex, onChange: (event) => loadScenario(event.target.value), "aria-label": "保存シナリオ" },
+            h("option", { value: DEFAULT_SCENARIO_ID }, DEFAULT_SCENARIO_NAME),
+            saved.map((item, index) => h("option", { key: item.id || `${item.name}-${index}`, value: `saved:${item.id}` }, item.name)),
+          ),
+          h("button", { type: "button", onClick: exportScenarioFile, className: "saveButton fileSaveButton", "aria-label": "現在のシナリオを端末に保存" }, "端末に保存"),
         ),
-        h("button", { type: "button", onClick: exportScenarioFile, className: "saveButton fileSaveButton", "aria-label": "現在のシナリオをファイルに保存" }, "保存"),
+        renderShareButtons("pcShareButtons"),
       ),
     ),
     activePage !== "app"
@@ -3261,7 +3541,7 @@ function App() {
         h(
           "div",
           { className: "stepGuide" },
-          h("strong", null, "かんたん３ステップ"),
+          h("strong", null, "かんたん３ステップ（ログイン不要）"),
           h("span", null, "①情報入力"),
           h("span", null, "②「将来予測」押す"),
           h("span", null, "③結果確認"),
@@ -3327,10 +3607,13 @@ function App() {
           "将来予測",
         ),
       ),
+      renderShareButtons("mobileShareButtons"),
       h(
         "div",
         { className: `panel chartPanel resultPanel${hasForecastRun ? "" : " sampleResultPanel"}` },
         !hasForecastRun ? h("div", { className: "sampleOverlay", "aria-hidden": "true" }, "SAMPUL") : null,
+        isCalculating ? h("div", { className: "calculatingOverlay", role: "status", "aria-live": "polite" }, "計算中・・・") : null,
+        h(AssetSummaryCard, { projection, deficitStartAge }),
         h(
           "div",
           { className: "panelHeader" },
@@ -3378,15 +3661,6 @@ function App() {
             h("span", { className: "chip" }, activeTab === "chart" ? `${forecastScenario.currentAge}歳から${forecastScenario.lifeExpectancy}歳` : `${projection.rows.length}年分`),
           ),
         ),
-        showDefaultDetailNotice
-          ? h(
-              "p",
-              { className: "detailNotice" },
-              "入力した項目以外は一般的な数値・条件等により予測しています。",
-              h("br"),
-              "より精緻な予測をするためには詳細な情報を入力してください。",
-            )
-          : null,
         activeTab === "chart"
           ? h(AssetChart, { data: projection.rows, showCashflow, cashflowScale, onStepCashflowScale: stepCashflowScale, onOpen: () => setIsChartModalOpen(true) })
           : h(
@@ -3425,39 +3699,17 @@ function App() {
                 ),
               ),
             ),
-        h(
-          "div",
-          { className: "summaryGrid chartSummary twoMetricSummary" },
-          h(AssetForecastMetric, { depletionAge: projection.depletionAge, deficitStartAge }),
-          h(
-            "article",
-            { className: "metric assetAgeMetric" },
-            h(
-              "label",
-              { className: "assetAgeLabel" },
-              h(
-                "select",
-                {
-                  value: selectedAssetAge,
-                  onChange: (event) => setSelectedAssetAge(Number(event.target.value)),
-                  "aria-label": "資産表示年齢",
-                },
-                projection.rows.map((row) => h("option", { key: row.age, value: row.age }, row.age)),
-              ),
-              h("span", null, "歳時点の資産"),
-            ),
-            h(
-              "button",
-              {
-                type: "button",
-                className: "assetValueButton",
-                onClick: () => setIsBreakdownOpen(true),
-                disabled: !selectedAssetRow,
-              },
-              selectedAssetRow ? yen(selectedAssetRow.closingAssets) : "-",
-            ),
-          ),
-        ),
+        h(ResultHintCard, { projection, forecastScenario, requiredMonthlyReduction, oneManReductionYears, retirementExpenseIncrease }),
+        showDefaultDetailNotice
+          ? h(
+              "p",
+              { className: "detailNotice bottomDetailNotice" },
+              "入力した項目以外は一般的な数値・条件等により予測しています。",
+              h("br"),
+              "より精緻な予測をするためには詳細な情報を入力してください。",
+            )
+          : null,
+        h("button", { type: "button", className: "mobileReturnButton", onClick: () => document.querySelector(".inputPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }) }, "再度入力する"),
       ),
     ),
     isScenarioNameOpen
