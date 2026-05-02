@@ -1,6 +1,14 @@
 # 将来資産シミュレーター
 
-Reactで作成したスマホ対応の将来資産シミュレーションWebアプリです。
+Reactで作成した、スマホ対応の将来資産シミュレーションWebアプリです。
+
+## 構成
+
+- Nodeサーバー不要の静的サイトです。
+- `index.html` を入口として、Reactはブラウザ上でES Modulesとして動作します。
+- React / React DOMはimport mapでCDNから読み込みます。
+- `npm run build` で `dist/` に公開用ファイルを出力します。
+- Vercelでは `dist/` をそのまま静的配信します。
 
 ## 主な機能
 
@@ -12,41 +20,43 @@ Reactで作成したスマホ対応の将来資産シミュレーションWebア
 - シナリオをJSONファイルとして端末に保存
 - 使い方、免責事項、プライバシーポリシーページを搭載
 
-## ローカル起動
-
-```powershell
-npm run start
-```
-
-ブラウザで `http://localhost:4173` を開きます。
-
-サーバーを使わずに確認したい場合は、`standalone.html` をブラウザで開くこともできます。
-
 ## ビルド
 
 ```powershell
 npm run build
 ```
 
-`dist/` に公開用ファイルが生成されます。
+`dist/` に以下が出力されます。
+
+- `dist/index.html`
+- `dist/src/App.js`
+- `dist/src/styles.css`
+- `dist/standalone.html`
+
+## Vercelデプロイ手順
+
+1. このプロジェクトをGitHubリポジトリに保存します。
+2. Vercelにログインします。
+3. `Add New...` から `Project` を選択します。
+4. GitHubリポジトリをImportします。
+5. Build Commandは `npm run build` を指定します。
+6. Output Directoryは `dist` を指定します。
+7. `Deploy` を押します。
+
+`vercel.json` にも以下を設定済みです。
+
+```json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist"
+}
+```
 
 ## 保存データについて
 
 シナリオ一覧はブラウザのlocalStorageに保存されます。localStorageは同じブラウザ・同じURLの中だけで利用される保存領域であり、別端末や別ブラウザには自動共有されません。
 
 保存ボタンで出力するJSONファイルは、利用者が選択した端末上の場所に保存されます。
-
-## Vercelデプロイ手順
-
-1. GitHubにこのプロジェクトを保存します。
-2. Vercelにログインし、`Add New...` から `Project` を選択します。
-3. GitHubリポジトリをImportします。
-4. Build Commandに `npm run build` を指定します。
-5. Output Directoryに `dist` を指定します。
-6. Install Commandは空欄、または `npm install` のままで問題ありません。
-7. `Deploy` を押します。
-
-このプロジェクトはReactをCDNから読み込む静的構成です。Vercelでは `dist/index.html` と `dist/src/` が配信されます。
 
 ## 注意事項
 
