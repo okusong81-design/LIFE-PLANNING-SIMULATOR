@@ -1,0 +1,1968 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { createRoot } from "react-dom/client";
+
+const h = React.createElement;
+const STORAGE_KEY = "life-cashflow-scenarios";
+const DEFAULT_SCENARIO_ID = "default";
+const DEFAULT_SCENARIO_NAME = "将来資産シナリオ";
+
+const defaultScenario = {
+  id: DEFAULT_SCENARIO_ID,
+  name: DEFAULT_SCENARIO_NAME,
+  currentAge: 35,
+  lifeExpectancy: 95,
+  currentAssets: 5000000,
+  monthlyIncome: 4000000,
+  monthlyExpenses: 250000,
+  retirementExpenses: 250000,
+  retirementAge: 65,
+  retirementBonus: 15000000,
+  pensionMonthly: 180000,
+  annualReturn: 3.1,
+  inflationRate: 2,
+  cashPercent: 30,
+  stockPercent: 70,
+  currentCashAmount: 1500000,
+  currentStockAmount: 3500000,
+  currentCashReturn: 1,
+  currentStockReturn: 4,
+  cashReturn: 1,
+  stockReturn: 4,
+  cashCapNone: true,
+  cashCapAmount: 1500000,
+  homePurchaseAmount: 0,
+  homePurchaseAge: 35,
+  depreciationType: "house",
+  mortgageAmount: 0,
+  mortgageYears: 35,
+  mortgageRate: 2,
+  carPurchaseAmount: 0,
+  carPurchaseAge: 35,
+  carDepreciationType: "yes",
+  carRecurringPurchase: false,
+  salaryDetails: {},
+  events: Array.from({ length: 5 }, () => ({ name: "", age: null, costMan: 0 })),
+};
+
+const salaryAges = [20, 30, 40, 50, 60];
+
+const fields = [
+  { key: "currentAge", label: "現在年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
+  { key: "lifeExpectancy", label: "想定寿命", suffix: "歳", min: 1, max: 130, step: 1, decimals: 0 },
+  { key: "monthlyIncome", label: "年収（手取り）", suffix: "円", min: 0, step: 100000, decimals: 0 },
+  { key: "monthlyExpenses", label: "支出（月額・生活費等）", suffix: "円", min: 0, step: 10000, decimals: 0 },
+  { key: "currentAssets", label: "総資産（現在）", suffix: "円", min: 1000000, step: 1000000, decimals: 0, roundToStep: true },
+  { key: "annualReturn", label: "運用利回り", suffix: "%", min: -20, max: 30, step: 1, decimals: 1 },
+  { key: "retirementAge", label: "退職年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
+  { key: "retirementBonus", label: "退職金", suffix: "円", min: 0, step: 1000000, decimals: 0, roundToStep: true },
+  { key: "pensionMonthly", label: "年金（月額）　65歳～", suffix: "円", min: 0, step: 10000, decimals: 0 },
+  { key: "retirementExpenses", label: "老後支出", suffix: "円", min: 0, step: 10000, decimals: 0 },
+  { key: "inflationRate", label: "インフレ率", suffix: "%", min: -10, max: 20, step: 0.1, decimals: 1 },
+];
+
+const assetDetailFields = [
+  { key: "currentCashAmount", label: "現預金額", suffix: "円", min: -1000000000, step: 100000, decimals: 0, roundToStep: true, group: "現在資産" },
+  { key: "currentCashReturn", label: "現預金利回り", suffix: "%", min: -20, max: 30, step: 0.1, decimals: 1 },
+  { key: "currentStockAmount", label: "株式等額", suffix: "円", min: 0, step: 100000, decimals: 0, roundToStep: true },
+  { key: "currentStockReturn", label: "株式等利回り", suffix: "%", min: -20, max: 30, step: 0.1, decimals: 1 },
+  { key: "cashPercent", label: "現預金", suffix: "%", min: 0, max: 100, step: 1, decimals: 0, detailReturnSource: true },
+  { key: "cashReturn", label: "現預金 利回り", suffix: "%", min: -20, max: 30, step: 0.1, decimals: 1, detailReturnSource: true },
+  { key: "stockPercent", label: "株式等", suffix: "%", min: 0, max: 100, step: 1, decimals: 0, detailReturnSource: true },
+  { key: "stockReturn", label: "株式等 利回り", suffix: "%", min: -20, max: 30, step: 0.1, decimals: 1, detailReturnSource: true },
+  { key: "cashCapAmount", label: "現預金上限額", suffix: "円", min: 0, step: 100000, decimals: 0, roundToStep: true },
+];
+
+const otherAssetDetailFields = [
+  { key: "homePurchaseAmount", label: "購入額", suffix: "円", min: 0, step: 1000000, decimals: 0, roundToStep: true, group: "自宅" },
+  { key: "homePurchaseAge", label: "年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
+  {
+    key: "depreciationType",
+    label: "減価償却",
+    type: "select",
+    options: [
+      { value: "none", label: "なし" },
+      { value: "house", label: "戸建て" },
+      { value: "mansion", label: "マンション" },
+    ],
+  },
+  { key: "mortgageAmount", label: "住宅ローン", suffix: "円", min: 0, step: 1000000, decimals: 0, roundToStep: true },
+  { key: "mortgageYears", label: "年数", suffix: "年", min: 1, max: 50, step: 1, decimals: 0 },
+  { key: "mortgageRate", label: "利率", suffix: "%", min: 0, max: 20, step: 0.1, decimals: 1 },
+  { key: "carPurchaseAmount", label: "購入額", suffix: "円", min: 0, step: 100000, decimals: 0, roundToStep: true, group: "車" },
+  { key: "carPurchaseAge", label: "年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
+  {
+    key: "carDepreciationType",
+    label: "減価償却",
+    type: "select",
+    options: [
+      { value: "yes", label: "あり" },
+      { value: "no", label: "なし" },
+    ],
+  },
+];
+
+function yen(value) {
+  const abs = Math.abs(value);
+  if (abs >= 100000000) return `${(value / 100000000).toFixed(1)}億円`;
+  if (abs >= 10000) return `${Math.round(value / 10000).toLocaleString("ja-JP")}万円`;
+  return `${Math.round(value).toLocaleString("ja-JP")}円`;
+}
+
+function parseInputNumber(value, decimals = 0) {
+  const cleaned = String(value).replace(/,/g, "").trim();
+  if (cleaned === "" || cleaned === "-" || cleaned === ".") return 0;
+  const number = Number(cleaned);
+  if (!Number.isFinite(number)) return 0;
+  return decimals === 0 ? Math.round(number) : number;
+}
+
+function toHalfWidthNumberText(value) {
+  return String(value)
+    .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+    .replace(/[，．－ー]/g, (char) => ({ "，": ",", "．": ".", "－": "-", "ー": "-" })[char] || char);
+}
+
+function sanitizeNumberInput(value, field = {}) {
+  const halfWidth = toHalfWidthNumberText(value).replace(/,/g, "");
+  const allowNegative = Number(field.min ?? 0) < 0;
+  const allowDecimal = Number(field.decimals ?? 0) > 0;
+  let output = "";
+  let hasMinus = false;
+  let hasDot = false;
+  for (const char of halfWidth) {
+    if (char >= "0" && char <= "9") {
+      output += char;
+    } else if (char === "-" && allowNegative && !hasMinus && output.length === 0) {
+      output += char;
+      hasMinus = true;
+    } else if (char === "." && allowDecimal && !hasDot) {
+      output += char;
+      hasDot = true;
+    }
+  }
+  return output;
+}
+
+function clampValue(value, field) {
+  return Math.min(Math.max(value, field.min ?? -Infinity), field.max ?? Infinity);
+}
+
+function normalizeFieldValue(value, field) {
+  const step = field.roundToStep ? field.step : null;
+  const steppedValue = step ? Math.round(value / step) * step : value;
+  const decimalValue = field.decimals === 0 ? Math.round(steppedValue) : Number(steppedValue.toFixed(field.decimals));
+  return clampValue(decimalValue, field);
+}
+
+function formatInputNumber(value, decimals = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return number.toLocaleString("ja-JP", {
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: 0,
+  });
+}
+
+function getDefaultGrossIncome(input) {
+  return Math.round((Number(input.monthlyIncome) || 0) / 0.8);
+}
+
+function getSalaryRow(input, age) {
+  const detail = input.salaryDetails?.[age] || {};
+  const gross = Number.isFinite(Number(detail.gross)) ? Number(detail.gross) : getDefaultGrossIncome(input);
+  const net = Number.isFinite(Number(detail.net)) ? Number(detail.net) : Math.round(gross * 0.8);
+  return { gross, net };
+}
+
+function getAnnualIncomeForAge(input, age) {
+  if (age < Number(input.currentAge)) return 0;
+  const sortedAges = [...salaryAges].sort((a, b) => a - b);
+  if (age <= sortedAges[0]) return getSalaryRow(input, sortedAges[0]).net;
+  for (let index = 1; index < sortedAges.length; index += 1) {
+    const previousAge = sortedAges[index - 1];
+    const nextAge = sortedAges[index];
+    if (age <= nextAge) {
+      const previousNet = getSalaryRow(input, previousAge).net;
+      const nextNet = getSalaryRow(input, nextAge).net;
+      if (nextNet > previousNet) {
+        const progress = (age - previousAge) / (nextAge - previousAge);
+        return Math.round(previousNet + (nextNet - previousNet) * progress);
+      }
+      return age < nextAge ? previousNet : nextNet;
+    }
+  }
+  return getSalaryRow(input, sortedAges.at(-1)).net;
+}
+
+function getEventExpenseForAge(input, age) {
+  return (input.events || []).reduce((total, event) => {
+    const eventAge = event.age === null || event.age === undefined || event.age === "" ? Number(input.currentAge) : Number(event.age);
+    if (eventAge !== age) return total;
+    return total + (Number(event.costMan) || 0) * 10000;
+  }, 0);
+}
+
+function getWeightedReturn(input) {
+  const cashPercent = Number(input.cashPercent) || 0;
+  const stockPercent = Number(input.stockPercent) || 0;
+  const totalPercent = cashPercent + stockPercent;
+  if (totalPercent <= 0) return Number(input.annualReturn) || 0;
+  return (
+    (cashPercent * (Number(input.cashReturn) || 0) +
+      stockPercent * (Number(input.stockReturn) || 0)) /
+    totalPercent
+  );
+}
+
+function withWeightedReturn(input) {
+  return { ...input, annualReturn: Number(getWeightedReturn(input).toFixed(1)) };
+}
+
+function getLinkedReturnsFromAnnualReturn(input, annualReturn) {
+  const cashPercent = Number(input.cashPercent) || 0;
+  const stockPercent = Number(input.stockPercent) || 0;
+  const denominator = cashPercent + stockPercent * 4;
+  const cashReturn = denominator === 0 ? Number(annualReturn) || 0 : ((Number(annualReturn) || 0) * (cashPercent + stockPercent)) / denominator;
+  return {
+    cashReturn: Number(cashReturn.toFixed(1)),
+    stockReturn: Number((cashReturn * 4).toFixed(1)),
+  };
+}
+
+function withLinkedReturnFields(input, annualReturn) {
+  const linked = getLinkedReturnsFromAnnualReturn(input, annualReturn);
+  return {
+    ...input,
+    annualReturn: Number(annualReturn),
+    currentCashReturn: linked.cashReturn,
+    cashReturn: linked.cashReturn,
+    currentStockReturn: linked.stockReturn,
+    stockReturn: linked.stockReturn,
+  };
+}
+
+function withSyncedReturnField(input, fieldKey, value) {
+  const next = { ...input };
+  if (fieldKey === "annualReturn") return withLinkedReturnFields(next, value);
+  if (fieldKey === "currentCashReturn" || fieldKey === "cashReturn") {
+    next.currentCashReturn = value;
+    next.cashReturn = value;
+    return withWeightedReturn(next);
+  }
+  if (fieldKey === "currentStockReturn" || fieldKey === "stockReturn") {
+    next.currentStockReturn = value;
+    next.stockReturn = value;
+    return withWeightedReturn(next);
+  }
+  return input;
+}
+
+function getFieldLabel(field) {
+  if (field.key === "cashPercent") return "現預金割合";
+  if (field.key === "stockPercent") return "株式等割合";
+  return field.label;
+}
+
+function splitFinancialAssets(amount, input) {
+  const cashPercent = Number(input.cashPercent) || 0;
+  const stockPercent = Number(input.stockPercent) || 0;
+  const totalPercent = cashPercent + stockPercent || 1;
+  if (amount < 0) {
+    return { cash: amount, stocks: 0 };
+  }
+  return {
+    cash: amount * (cashPercent / totalPercent),
+    stocks: amount * (stockPercent / totalPercent),
+  };
+}
+
+function reduceFinancialAssets(parts, amount) {
+  let remaining = Math.max(Number(amount) || 0, 0);
+  let cash = parts.cash;
+  let stocks = parts.stocks;
+  const cashReduction = Math.min(Math.max(cash, 0), remaining);
+  cash -= cashReduction;
+  remaining -= cashReduction;
+  const stockReduction = Math.min(Math.max(stocks, 0), remaining);
+  stocks -= stockReduction;
+  remaining -= stockReduction;
+  if (remaining > 0) cash -= remaining;
+  return { cash, stocks };
+}
+
+function allocateToInvestment(parts, amount, input) {
+  const cashPercent = Number(input.cashPercent) || 0;
+  const stockPercent = Number(input.stockPercent) || 0;
+  const totalPercent = cashPercent + stockPercent || 1;
+  return {
+    cash: parts.cash + amount * (cashPercent / totalPercent),
+    stocks: parts.stocks + amount * (stockPercent / totalPercent),
+  };
+}
+
+function applyCashCap(parts, input) {
+  if (input.cashCapNone) return parts;
+  const cap = Number(input.cashCapAmount) || 0;
+  if (parts.cash <= cap) return parts;
+  const excess = parts.cash - cap;
+  return { cash: cap, stocks: parts.stocks + excess };
+}
+
+function keepStocksNonNegative(parts) {
+  if (parts.stocks >= 0) return parts;
+  return { cash: parts.cash + parts.stocks, stocks: 0 };
+}
+
+function rebalanceNegativeCash(parts) {
+  let cash = parts.cash;
+  let stocks = parts.stocks;
+  if (cash < 0 && stocks >= 1) {
+    const transfer = Math.min(stocks, Math.abs(cash));
+    cash += transfer;
+    stocks -= transfer;
+  }
+  return keepStocksNonNegative({ cash, stocks });
+}
+
+function getAssetBreakdown(row, input) {
+  if (!row) {
+    return {
+      financialAssets: 0,
+      cash: 0,
+      stocks: 0,
+      homeAsset: 0,
+      carAsset: 0,
+      mortgageBalance: 0,
+      carLoanBalance: 0,
+      otherSubtotal: 0,
+      total: 0,
+    };
+  }
+
+  const homeAsset = Number(row.homeAsset) || 0;
+  const carAsset = Number(row.carAsset) || 0;
+  const mortgageBalance = Number(row.mortgageBalance) || 0;
+  const carLoanBalance = Number(row.carLoanBalance) || 0;
+  const financialAssets = Number(row.financialAssets) || 0;
+  const cash = Number(row.cashAsset);
+  const stocks = Number(row.stockAsset);
+
+  return {
+    financialAssets,
+    cash: Number.isFinite(cash) ? cash : splitFinancialAssets(financialAssets, input).cash,
+    stocks: Number.isFinite(stocks) ? stocks : splitFinancialAssets(financialAssets, input).stocks,
+    homeAsset,
+    carAsset,
+    mortgageBalance,
+    carLoanBalance,
+    otherSubtotal: homeAsset + carAsset - mortgageBalance - carLoanBalance,
+    total: Number(row.closingAssets) || 0,
+  };
+}
+
+function getChartTicks(values, count = 5) {
+  const minValue = Math.min(...values, 0) / 10000;
+  const maxValue = Math.max(...values, 0) / 10000;
+  const range = Math.max(maxValue - minValue, 1);
+  const roughStep = range / Math.max(count - 1, 1);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const step = [1, 2, 5, 10].find((candidate) => candidate * magnitude >= roughStep) * magnitude;
+  const minTick = Math.floor(minValue / step) * step;
+  const maxTick = Math.ceil(maxValue / step) * step;
+  const ticks = [];
+
+  for (let tick = minTick; tick <= maxTick + step / 2; tick += step) {
+    ticks.push(Math.round(tick * 10000));
+  }
+
+  return ticks;
+}
+
+function manYen(value) {
+  return Math.round(value / 10000).toLocaleString("ja-JP");
+}
+
+function compactManYen(value) {
+  return Math.round(value / 10000).toLocaleString("ja-JP", { useGrouping: false });
+}
+
+function getCashflowTicks(scale) {
+  return [-scale, -scale / 2, 0, scale / 2, scale];
+}
+
+function millionYen(value) {
+  return (value / 1000000).toLocaleString("ja-JP", {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 0,
+  });
+}
+
+function getAnnualMortgagePayment(principal, annualRate, years) {
+  if (principal <= 0 || years <= 0) return 0;
+  if (annualRate <= 0) return principal / years;
+  const rate = annualRate / 100;
+  return (principal * rate) / (1 - Math.pow(1 + rate, -years));
+}
+
+function getMortgageBalanceAtAge(input, age) {
+  const principal = Number(input.mortgageAmount) || 0;
+  const purchaseAge = Number(input.homePurchaseAge);
+  const years = Math.max(Number(input.mortgageYears) || 0, 0);
+  if (principal <= 0 || years <= 0 || age < purchaseAge) return 0;
+  const elapsedYears = Math.min(Math.max(age - purchaseAge, 0), years);
+  const annualPayment = getAnnualMortgagePayment(principal, Number(input.mortgageRate) || 0, years);
+  let balance = principal;
+  for (let index = 0; index < elapsedYears; index += 1) {
+    const interest = balance * ((Number(input.mortgageRate) || 0) / 100);
+    const principalPayment = Math.min(Math.max(annualPayment - interest, 0), balance);
+    balance = Math.max(0, balance - principalPayment);
+  }
+  return balance;
+}
+
+function getHomeAssetValue(input, age) {
+  const purchaseAge = Number(input.homePurchaseAge);
+  const purchaseAmount = Number(input.homePurchaseAmount) || 0;
+  if (purchaseAmount <= 0 || age < purchaseAge) return 0;
+
+  const depreciation = {
+    house: { ratio: 0.4, years: 22 },
+    mansion: { ratio: 0.8, years: 47 },
+  }[input.depreciationType];
+
+  if (!depreciation) return purchaseAmount;
+
+  const depreciableAmount = purchaseAmount * depreciation.ratio;
+  const annualDepreciation = depreciableAmount / depreciation.years;
+  const yearsOwned = age - purchaseAge;
+  const accumulatedDepreciation = Math.min(depreciableAmount, annualDepreciation * yearsOwned);
+  return purchaseAmount - accumulatedDepreciation;
+}
+
+function getCarAssetValue(input, age) {
+  const purchaseAmount = Number(input.carPurchaseAmount) || 0;
+  if (purchaseAmount <= 0) return 0;
+  if (input.carDepreciationType !== "yes") return purchaseAmount;
+  const annualDepreciation = purchaseAmount / 13;
+  const yearsOwned = age - Number(input.carPurchaseAge);
+  return Math.max(0, purchaseAmount - annualDepreciation * yearsOwned);
+}
+
+function getCurrentOtherNetAssets(input) {
+  const currentAge = Number(input.currentAge);
+  const homeAsset = getHomeAssetValue(input, currentAge);
+  const carAsset = currentAge >= Number(input.carPurchaseAge) ? getCarAssetValue(input, currentAge) : 0;
+  return homeAsset + carAsset - getMortgageBalanceAtAge(input, currentAge);
+}
+
+function withCurrentTotalAssets(input) {
+  return {
+    ...input,
+    currentAssets: (Number(input.currentCashAmount) || 0) + (Number(input.currentStockAmount) || 0) + getCurrentOtherNetAssets(input),
+  };
+}
+
+function loadScenarios() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    if (!Array.isArray(stored)) return [];
+    return stored
+      .filter((item, index, array) => {
+        if (!item || item.id === DEFAULT_SCENARIO_ID || item.name === DEFAULT_SCENARIO_NAME) return false;
+        return array.findIndex((candidate) => candidate && candidate.name === item.name) === index;
+      })
+      .map((item) => normalizeLoadedScenario(item));
+  } catch {
+    return [];
+  }
+}
+
+function normalizeLoadedScenario(item) {
+  return withCurrentTotalAssets(
+    withWeightedReturn({
+      ...defaultScenario,
+      ...item,
+      id: item?.id ?? crypto.randomUUID(),
+      retirementBonus: item?.retirementBonus ?? 0,
+      retirementExpenses: item?.retirementExpenses ?? item?.monthlyExpenses ?? defaultScenario.retirementExpenses,
+      depreciationType: item?.depreciationType ?? defaultScenario.depreciationType,
+      events: item?.events ?? defaultScenario.events,
+    }),
+  );
+}
+
+function getScenarioSnapshot(input) {
+  const { savedAt, exportedAt, ...rest } = input || {};
+  return JSON.stringify(rest);
+}
+
+function makeScenarioFilename(name) {
+  const safeName = String(name || "scenario").replace(/[\\/:*?"<>|]/g, "_").trim() || "scenario";
+  return `${safeName}.json`;
+}
+
+function toFullWidthNumber(value) {
+  return String(value).replace(/\d/g, (digit) => "０１２３４５６７８９"[Number(digit)]);
+}
+
+function calculateProjection(input) {
+  const startAge = Number(input.currentAge);
+  const endAge = Math.max(Number(input.lifeExpectancy), startAge);
+  let financialParts = {
+    cash: Number(input.currentCashAmount) || 0,
+    stocks: Number(input.currentStockAmount) || 0,
+  };
+  let assets = financialParts.cash + financialParts.stocks + getCurrentOtherNetAssets(input);
+  let homeAsset = 0;
+  let carAsset = 0;
+  let activeCarPurchaseAge = Number(input.carPurchaseAge);
+  let mortgageBalance = Number(input.homePurchaseAge) < startAge ? getMortgageBalanceAtAge(input, startAge) : 0;
+  let carLoanBalance = 0;
+  const rows = [];
+  let depletionAge = null;
+  const mortgagePrincipal = Number(input.mortgageAmount) || 0;
+  const mortgageYears = Math.max(Number(input.mortgageYears) || 0, 0);
+  const mortgageRate = Number(input.mortgageRate) || 0;
+  const annualMortgagePayment = getAnnualMortgagePayment(mortgagePrincipal, mortgageRate, mortgageYears);
+
+  for (let age = startAge; age <= endAge; age += 1) {
+    const yearsFromNow = age - startAge;
+    const inflationFactor = Math.pow(1 + Number(input.inflationRate) / 100, yearsFromNow);
+    const isBeforeRetirement = age < Number(input.retirementAge);
+    const annualWorkIncome = isBeforeRetirement ? getAnnualIncomeForAge(input, age) : 0;
+    const pensionMonthly = age >= 65 ? Number(input.pensionMonthly) * inflationFactor : 0;
+    const retirementBonus = age === Number(input.retirementAge) ? Number(input.retirementBonus) : 0;
+    const isHomePurchaseAge = age === Number(input.homePurchaseAge);
+    const homePurchase = isHomePurchaseAge ? Number(input.homePurchaseAmount) : 0;
+    const mortgageBorrowing = isHomePurchaseAge ? mortgagePrincipal : 0;
+    if (
+      Number(input.carPurchaseAmount) > 0 &&
+      input.carRecurringPurchase &&
+      input.carDepreciationType === "yes" &&
+      age > activeCarPurchaseAge &&
+      age - activeCarPurchaseAge >= 13
+    ) {
+      activeCarPurchaseAge = age;
+    }
+    const isCarPurchaseAge = age === activeCarPurchaseAge;
+    const carPurchase = isCarPurchaseAge ? Number(input.carPurchaseAmount) : 0;
+    const baseExpensesMonthly = isBeforeRetirement ? Number(input.monthlyExpenses) : Number(input.retirementExpenses);
+    const expensesMonthly = baseExpensesMonthly * inflationFactor;
+    const eventExpense = getEventExpenseForAge(input, age);
+    const annualIncome = annualWorkIncome + pensionMonthly * 12 + retirementBonus;
+    homeAsset = getHomeAssetValue(input, age);
+    carAsset = age >= activeCarPurchaseAge ? getCarAssetValue({ ...input, carPurchaseAge: activeCarPurchaseAge }, age) : 0;
+    if (mortgageBorrowing > 0) mortgageBalance += mortgageBorrowing;
+    const loanYear = age - Number(input.homePurchaseAge);
+    const isMortgagePaying = mortgageBalance > 0 && loanYear >= 0 && loanYear < mortgageYears;
+    const mortgageInterest = isMortgagePaying ? mortgageBalance * (mortgageRate / 100) : 0;
+    const mortgagePrincipalPayment = isMortgagePaying ? Math.min(Math.max(annualMortgagePayment - mortgageInterest, 0), mortgageBalance) : 0;
+    mortgageBalance = Math.max(0, mortgageBalance - mortgagePrincipalPayment);
+    const openingAssets = assets;
+    if (homePurchase > 0) financialParts = reduceFinancialAssets(financialParts, Math.max(homePurchase - mortgageBorrowing, 0));
+    if (carPurchase > 0) financialParts = reduceFinancialAssets(financialParts, carPurchase);
+    financialParts = rebalanceNegativeCash(financialParts);
+    const annualCashflow = annualIncome - expensesMonthly * 12 - mortgageInterest - eventExpense;
+    const currentCashGain = Math.max(Number(input.currentCashAmount) || 0, 0) * ((Number(input.currentCashReturn) || 0) / 100);
+    const currentStockGain = Math.max(Number(input.currentStockAmount) || 0, 0) * ((Number(input.currentStockReturn) || 0) / 100);
+    const investmentCashBase = Math.max(financialParts.cash - (Number(input.currentCashAmount) || 0), 0);
+    const investmentStockBase = Math.max(financialParts.stocks - (Number(input.currentStockAmount) || 0), 0);
+    const cashGain = investmentCashBase * ((Number(input.cashReturn) || 0) / 100);
+    const stockGain = investmentStockBase * ((Number(input.stockReturn) || 0) / 100);
+    financialParts = allocateToInvestment(financialParts, annualCashflow + currentCashGain + currentStockGain, input);
+    financialParts = {
+      cash: financialParts.cash + cashGain,
+      stocks: financialParts.stocks + stockGain,
+    };
+    financialParts = rebalanceNegativeCash(applyCashCap(financialParts, input));
+    const financialAssets = financialParts.cash + financialParts.stocks;
+    const investmentGain = cashGain + stockGain;
+    assets = financialAssets + homeAsset + carAsset - mortgageBalance - carLoanBalance;
+
+    if (depletionAge === null && assets <= 0) depletionAge = age;
+
+    rows.push({
+      age,
+      openingAssets,
+      closingAssets: assets,
+      annualIncome,
+      annualExpenses: expensesMonthly * 12,
+      annualCashflow,
+      retirementBonus,
+      homePurchase,
+      homeAsset,
+      carPurchase,
+      eventExpense,
+      carAsset,
+      activeCarPurchaseAge,
+      financialAssets,
+      cashAsset: financialParts.cash,
+      stockAsset: financialParts.stocks,
+      mortgageBorrowing,
+      mortgageInterest,
+      mortgagePrincipalPayment,
+      mortgageBalance,
+      carLoanBalance,
+    });
+  }
+
+  return { rows, depletionAge };
+}
+
+function Metric({ label, value, primary = false }) {
+  return h("article", { className: `metric${primary ? " primaryMetric" : ""}` }, h("span", null, label), h("strong", null, value));
+}
+
+function getDeficitStartAgeForDepletion(projection) {
+  if (!projection.depletionAge) return null;
+  let deficitStartAge = null;
+  for (const row of projection.rows) {
+    if (row.age > projection.depletionAge) break;
+    if (row.annualCashflow < 0) {
+      if (deficitStartAge === null) deficitStartAge = row.age;
+    } else {
+      deficitStartAge = null;
+    }
+  }
+  return deficitStartAge ?? projection.depletionAge;
+}
+
+function AssetForecastMetric({ depletionAge, deficitStartAge }) {
+  const isDepleted = Boolean(depletionAge);
+  return h(
+    "article",
+    { className: `metric forecastMetric ${isDepleted ? "warningForecast" : "safeForecast"}` },
+    h("strong", null, isDepleted ? `あなたの資産寿命：${depletionAge}歳` : "将来安泰です。"),
+    h("span", null, isDepleted ? `⚠ ${deficitStartAge}歳以降に赤字が続きます。支出見直しや資産拡充が必要です。` : "計画的な資産運用をしましょう！"),
+  );
+}
+
+const infoPages = {
+  usage: {
+    title: "使い方",
+    lead: "入力フォームに前提条件を入れ、「将来予測」を押すと資産推移・年齢別キャッシュフロー・資産内訳が更新されます。",
+    sections: [
+      {
+        title: "基本入力",
+        items: [
+          "現在年齢、想定寿命、年収、支出、総資産、退職年齢、退職金、年金、インフレ率を入力します。",
+          "数値欄は直接入力のほか、右側の▲▼で増減できます。",
+          "入力しただけでは結果に反映されません。内容を確認してから「将来予測」を押してください。",
+        ],
+      },
+      {
+        title: "詳細入力",
+        items: [
+          "金融資産では、現預金・株式等の現在額、利回り、今後の組入割合、現預金上限を設定できます。",
+          "自宅・車では、購入額、取得年齢、減価償却、住宅ローン、車の買い替えを設定できます。",
+          "年収詳細では、20歳から60歳までの10歳単位の年収を入力できます。",
+          "イベント等では、最大5件の一時的な費用または収入を年齢ごとに登録できます。費用をマイナスで入力すると、その年齢で資産に加算されます。",
+        ],
+      },
+      {
+        title: "保存",
+        items: [
+          "シナリオ一覧はブラウザのlocalStorageに保存されます。",
+          "保存ボタンでは、現在のシナリオをJSONファイルとして端末に保存できます。",
+          "localStorageは同じブラウザ・同じURLで利用される保存領域です。別端末や別ブラウザには自動共有されません。",
+        ],
+      },
+    ],
+  },
+  disclaimer: {
+    title: "免責事項",
+    lead: "本アプリは将来資産を概算するためのシミュレーションツールです。",
+    sections: [
+      {
+        title: "試算結果について",
+        items: [
+          "表示される結果は、入力値と簡易的な計算ロジックに基づく参考値です。",
+          "税金、社会保険、手数料、制度変更、市場変動、個別事情を完全に反映するものではありません。",
+          "本アプリの結果は、投資判断、保険加入、ローン契約、退職判断などを推奨または保証するものではありません。",
+        ],
+      },
+      {
+        title: "利用者の判断",
+        items: [
+          "重要な判断を行う場合は、必ず税理士、ファイナンシャルプランナー、金融機関などの専門家にご相談ください。",
+          "本アプリの利用により発生した損害について、開発者は責任を負いません。",
+        ],
+      },
+    ],
+  },
+  privacy: {
+    title: "プライバシーポリシー",
+    lead: "本アプリは、入力されたシナリオ情報を原則として利用者のブラウザ内に保存します。",
+    sections: [
+      {
+        title: "保存される情報",
+        items: [
+          "年齢、収入、支出、資産、金融資産、自宅・車、イベント等、シミュレーションに入力した情報が保存対象です。",
+          "シナリオ一覧はlocalStorageに保存されます。localStorageは利用者のブラウザ内の保存領域です。",
+          "保存ボタンで出力したJSONファイルは、利用者が選択した端末上の場所に保存されます。",
+        ],
+      },
+      {
+        title: "外部送信",
+        items: [
+          "本アプリのシナリオデータは、アプリの通常利用において外部サーバーへ送信されません。",
+          "React等のライブラリをCDNから読み込む構成で利用する場合、ライブラリ提供元への通信が発生することがあります。",
+        ],
+      },
+      {
+        title: "削除方法",
+        items: [
+          "localStorageのデータは、ブラウザのサイトデータ削除、または開発者ツール等から削除できます。",
+          "JSONファイルとして保存したデータは、端末上のファイルを削除してください。",
+        ],
+      },
+    ],
+  },
+};
+
+function InfoPage({ page, onBack }) {
+  const content = infoPages[page] || infoPages.usage;
+  return h(
+    "section",
+    { className: "panel infoPage" },
+    h("div", { className: "infoPageHeader" }, h("h2", null, content.title), h("button", { type: "button", className: "saveButton secondaryActionButton", onClick: onBack }, "シミュレーターへ戻る")),
+    h("p", { className: "infoLead" }, content.lead),
+    content.sections.map((section) =>
+      h(
+        "section",
+        { className: "infoSection", key: section.title },
+        h("h3", null, section.title),
+        h("ul", null, section.items.map((item) => h("li", { key: item }, item))),
+      ),
+    ),
+  );
+}
+
+function AxisTitle({ x, y, anchor, title, detail, className }) {
+  return h(
+    "text",
+    { x, y, textAnchor: anchor, className },
+    h("tspan", { x, dy: 0 }, title),
+    h("tspan", { x, dy: 13 }, detail),
+  );
+}
+
+function AssetChart({ data, showCashflow, cashflowScale, onStepCashflowScale, onOpen }) {
+  const width = 760;
+  const height = 380;
+  const padding = { top: 54, right: showCashflow ? 64 : 18, bottom: 28, left: 62 };
+  const values = data.map((row) => row.closingAssets);
+  const ticks = getChartTicks(values);
+  const max = Math.max(...ticks);
+  const min = Math.min(...ticks);
+  const range = max - min || 1;
+  const cashflowTicks = getCashflowTicks(cashflowScale);
+  const cashflowMin = Math.min(...cashflowTicks);
+  const cashflowMax = Math.max(...cashflowTicks);
+  const cashflowRange = cashflowMax - cashflowMin || 1;
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const barSlot = chartWidth / Math.max(data.length, 1);
+  const barWidth = Math.max(3, Math.min(14, barSlot * 0.56));
+  const points = data.map((row, index) => ({
+    x: padding.left + (chartWidth * index) / Math.max(data.length - 1, 1),
+    y: padding.top + chartHeight - ((row.closingAssets - min) / range) * chartHeight,
+    row,
+  }));
+  const depletionIndex = points.findIndex((point) => point.row.closingAssets <= 0);
+  const depletionPoint = depletionIndex === -1 ? null : points[depletionIndex];
+  const safePoints = depletionIndex === -1 ? points : points.slice(0, depletionIndex + 1);
+  const depletedPoints = depletionIndex === -1 ? [] : points.slice(Math.max(depletionIndex - 1, 0));
+  const safePath = safePoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  const depletedPath = depletedPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  const fillPath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  const zeroY = padding.top + chartHeight - ((0 - min) / range) * chartHeight;
+  const cashflowZeroY = padding.top + chartHeight - ((0 - cashflowMin) / cashflowRange) * chartHeight;
+
+  return h(
+    "div",
+    {
+      className: `chartShell${onOpen ? " clickableChart" : ""}`,
+      "aria-label": "年齢ごとの資産推移グラフ",
+      onClick: onOpen || undefined,
+      role: onOpen ? "button" : undefined,
+      tabIndex: onOpen ? 0 : undefined,
+      onKeyDown: onOpen
+        ? (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen();
+            }
+          }
+        : undefined,
+    },
+    h(
+      "svg",
+      { viewBox: `0 0 ${width} ${height}`, role: "img" },
+      h(
+        "defs",
+        null,
+        h(
+          "linearGradient",
+          { id: "lineFill", x1: "0", x2: "0", y1: "0", y2: "1" },
+          h("stop", { offset: "0%", stopColor: "#2f7d6b", stopOpacity: "0.26" }),
+          h("stop", { offset: "100%", stopColor: "#2f7d6b", stopOpacity: "0.03" }),
+        ),
+      ),
+      ticks.map((tick) => {
+        const y = padding.top + chartHeight - ((tick - min) / range) * chartHeight;
+        return h(
+          "g",
+          { key: tick },
+          h("line", { x1: padding.left, x2: width - padding.right, y1: y, y2: y, className: "gridLine" }),
+          h("text", { x: padding.left - 10, y: y + 4, textAnchor: "end", className: "axisLabel" }, manYen(tick)),
+        );
+      }),
+      h(AxisTitle, { x: padding.left - 18, y: 10, anchor: "end", title: "資産", detail: "（折れ線）", className: "axisTitle" }),
+      h("text", { x: padding.left - 18, y: 40, textAnchor: "end", className: "axisUnit" }, "万円"),
+      showCashflow
+        ? cashflowTicks.map((tick) => {
+            const y = padding.top + chartHeight - ((tick - cashflowMin) / cashflowRange) * chartHeight;
+            return h(
+              "g",
+              { key: `cash-${tick}` },
+              h("text", { x: width - padding.right + 10, y: y + 4, textAnchor: "start", className: "cashAxisLabel" }, millionYen(tick)),
+            );
+          })
+        : null,
+      showCashflow ? h(AxisTitle, { x: width - 6, y: 10, anchor: "end", title: "収支", detail: "（棒グラフ）", className: "cashAxisTitle" }) : null,
+      showCashflow ? h("text", { x: width - 6, y: 40, textAnchor: "end", className: "cashAxisUnit" }, "百万円") : null,
+      showCashflow ? h("line", { x1: padding.left, x2: width - padding.right, y1: cashflowZeroY, y2: cashflowZeroY, className: "cashflowZeroLine" }) : null,
+      showCashflow
+        ? h(
+            "foreignObject",
+            { x: width - padding.right + 31, y: height - padding.bottom - 46, width: 24, height: 38 },
+            h(
+              "div",
+              { className: "axisScaleStepper", xmlns: "http://www.w3.org/1999/xhtml" },
+              h(
+                "button",
+                {
+                  type: "button",
+                  className: "axisScaleButton",
+                  onClick: (event) => {
+                    event.stopPropagation();
+                    onStepCashflowScale(1);
+                  },
+                  disabled: cashflowScale >= 100000000,
+                  "aria-label": "収支軸を拡大",
+                },
+                "＋",
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  className: "axisScaleButton",
+                  onClick: (event) => {
+                    event.stopPropagation();
+                    onStepCashflowScale(-1);
+                  },
+                  disabled: cashflowScale <= 10000000,
+                  "aria-label": "収支軸を縮小",
+                },
+                "－",
+              ),
+            ),
+          )
+        : null,
+      showCashflow
+        ? data.map((row, index) => {
+            const x = padding.left + barSlot * index + barSlot / 2 - barWidth / 2;
+            const clippedCashflow = Math.min(Math.max(row.annualCashflow, cashflowMin), cashflowMax);
+            const y = padding.top + chartHeight - ((clippedCashflow - cashflowMin) / cashflowRange) * chartHeight;
+            const barY = Math.min(y, cashflowZeroY);
+            const barHeight = Math.max(1, Math.abs(cashflowZeroY - y));
+            const isClippedHigh = row.annualCashflow > cashflowMax;
+            const isClippedLow = row.annualCashflow < cashflowMin;
+            const markerX = x + barWidth / 2;
+            return h(
+              "g",
+              { key: `bar-${row.age}` },
+              h("rect", {
+                x,
+                y: barY,
+                width: barWidth,
+                height: barHeight,
+                rx: 2,
+                className: row.annualCashflow >= 0 ? "cashflowBar positive" : "cashflowBar negative",
+              }),
+              isClippedHigh
+                ? h("polygon", {
+                    points: `${markerX},${padding.top + 2} ${markerX - 4},${padding.top + 9} ${markerX + 4},${padding.top + 9}`,
+                    className: "cashflowClipMarker positive",
+                  })
+                : null,
+              isClippedLow
+                ? h("polygon", {
+                    points: `${markerX},${padding.top + chartHeight - 2} ${markerX - 4},${padding.top + chartHeight - 9} ${markerX + 4},${padding.top + chartHeight - 9}`,
+                    className: "cashflowClipMarker negative",
+                  })
+                : null,
+            );
+          })
+        : null,
+      h("line", { x1: padding.left, x2: width - padding.right, y1: zeroY, y2: zeroY, className: "zeroLine" }),
+      h("path", { d: `${fillPath} L ${width - padding.right} ${height - padding.bottom} L ${padding.left} ${height - padding.bottom} Z`, fill: "url(#lineFill)" }),
+      depletionPoint
+        ? h("line", {
+            x1: depletionPoint.x,
+            x2: depletionPoint.x,
+            y1: height - padding.bottom,
+            y2: depletionPoint.y,
+            className: "depletionGuide",
+          })
+        : null,
+      safePath ? h("path", { d: safePath, className: "assetLine" }) : null,
+      depletedPath ? h("path", { d: depletedPath, className: "assetLine depletedAssetLine" }) : null,
+      points.map((point, index) => {
+        const show = point.row.age % 5 === 0 && index !== depletionIndex;
+        return show
+          ? h(
+              "g",
+              { key: point.row.age },
+              h("circle", { cx: point.x, cy: point.y, r: "4", className: "point" }),
+              h("text", { x: point.x, y: height - 12, textAnchor: "middle", className: "axisLabel" }, `${point.row.age}歳`),
+            )
+          : null;
+      }),
+      depletionPoint
+        ? h(
+            "text",
+            { x: depletionPoint.x, y: height - 2, textAnchor: "middle", className: "depletionAgeLabel" },
+            `${depletionPoint.row.age}歳`,
+          )
+        : null,
+    ),
+  );
+}
+
+function App() {
+  const [scenario, setScenario] = useState(defaultScenario);
+  const [forecastScenario, setForecastScenario] = useState(defaultScenario);
+  const [saved, setSaved] = useState(loadScenarios);
+  const [selectedIndex, setSelectedIndex] = useState(DEFAULT_SCENARIO_ID);
+  const [showCashflow, setShowCashflow] = useState(true);
+  const [cashflowScale, setCashflowScale] = useState(10000000);
+  const [activeTab, setActiveTab] = useState("chart");
+  const [detailModal, setDetailModal] = useState(null);
+  const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isScenarioNameOpen, setIsScenarioNameOpen] = useState(false);
+  const [scenarioNameDraft, setScenarioNameDraft] = useState("");
+  const [selectedAssetAge, setSelectedAssetAge] = useState(65);
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const [editingValues, setEditingValues] = useState({});
+  const [loadedSnapshot, setLoadedSnapshot] = useState(() => getScenarioSnapshot(defaultScenario));
+  const [pendingScenarioSelection, setPendingScenarioSelection] = useState(null);
+  const [activePage, setActivePage] = useState("app");
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [chartZoom, setChartZoom] = useState(1);
+  const projection = useMemo(() => calculateProjection(forecastScenario), [forecastScenario]);
+  const selectedAssetRow = projection.rows.find((row) => row.age === Number(selectedAssetAge));
+  const selectedBreakdown = getAssetBreakdown(selectedAssetRow, forecastScenario);
+  const deficitStartAge = getDeficitStartAgeForDepletion(projection);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+  }, [saved]);
+
+  function updateField(key, value) {
+    setScenario((current) => ({ ...current, [key]: key === "name" ? value : Number(value) }));
+  }
+
+  function normalizeScenarioAfterField(current, field, value) {
+    const pairedPercent =
+      field.key === "cashPercent"
+        ? { stockPercent: 100 - value }
+        : field.key === "stockPercent"
+          ? { cashPercent: 100 - value }
+          : {};
+    const next = { ...current, [field.key]: value, ...pairedPercent };
+    if (field.key === "annualReturn") {
+      return withLinkedReturnFields(next, value);
+    }
+    if (field.key === "currentAssets") {
+      const split = splitFinancialAssets(value - getCurrentOtherNetAssets(next), next);
+      next.currentCashAmount = split.cash;
+      next.currentStockAmount = split.stocks;
+      if (next.cashCapNone) next.cashCapAmount = split.cash;
+    }
+    if (field.key === "currentCashAmount" || field.key === "currentStockAmount") {
+      next.currentAssets = (Number(next.currentCashAmount) || 0) + (Number(next.currentStockAmount) || 0) + getCurrentOtherNetAssets(next);
+      if (field.key === "currentCashAmount" && next.cashCapNone) next.cashCapAmount = value;
+    }
+    if (field.key === "inflationRate") {
+      next.mortgageRate = value;
+    }
+    if (field.key === "monthlyExpenses") {
+      next.retirementExpenses = value;
+    }
+    if (["currentCashReturn", "cashReturn", "currentStockReturn", "stockReturn"].includes(field.key)) {
+      return withSyncedReturnField(next, field.key, value);
+    }
+    if (field.key === "currentAge") {
+      if (Number(current.homePurchaseAge) === Number(current.currentAge) || Number(current.homePurchaseAmount) === 0) {
+        next.homePurchaseAge = value;
+      }
+      if (Number(current.carPurchaseAge) === Number(current.currentAge) || Number(current.carPurchaseAmount) === 0) {
+        next.carPurchaseAge = value;
+      }
+      next.events = (current.events || defaultScenario.events).map((event, index) => {
+        const currentEvent = { ...(event || defaultScenario.events[index]) };
+        const hasEventInput = String(currentEvent.name || "").trim() !== "" || Number(currentEvent.costMan) !== 0;
+        const shouldUseCurrentAge =
+          currentEvent.age === null ||
+          currentEvent.age === undefined ||
+          currentEvent.age === "" ||
+          (!hasEventInput && Number(currentEvent.age) === Number(current.currentAge));
+        return shouldUseCurrentAge ? { ...currentEvent, age: value } : currentEvent;
+      });
+      if (!Number(current.mortgageYears)) next.mortgageYears = 35;
+    }
+    if (
+      [
+        "homePurchaseAmount",
+        "homePurchaseAge",
+        "depreciationType",
+        "mortgageAmount",
+        "mortgageYears",
+        "mortgageRate",
+        "carPurchaseAmount",
+        "carPurchaseAge",
+        "carDepreciationType",
+        "inflationRate",
+        "currentAge",
+      ].includes(field.key)
+    ) {
+      next.currentAssets = (Number(next.currentCashAmount) || 0) + (Number(next.currentStockAmount) || 0) + getCurrentOtherNetAssets(next);
+    }
+    return field.detailReturnSource ? withWeightedReturn(next) : next;
+  }
+
+  function updateNumberField(field, value) {
+    const sanitizedValue = sanitizeNumberInput(value, field);
+    const parsedValue = parseInputNumber(sanitizedValue, field.decimals);
+    setEditingValues((current) => ({ ...current, [field.key]: sanitizedValue }));
+    if (Number.isFinite(parsedValue)) {
+      setScenario((current) => {
+        const fieldValue = clampValue(parsedValue, field);
+        return normalizeScenarioAfterField(current, field, fieldValue);
+      });
+    }
+  }
+
+  function commitNumberField(field) {
+    const rawValue = editingValues[field.key] ?? scenario[field.key];
+    const normalizedValue = normalizeFieldValue(parseInputNumber(rawValue, field.decimals), field);
+    setScenario((current) => {
+      return normalizeScenarioAfterField(current, field, normalizedValue);
+    });
+    setEditingValues((current) => {
+      const next = { ...current };
+      delete next[field.key];
+      return next;
+    });
+  }
+
+  function stepNumberField(field, direction) {
+    const currentValue = normalizeFieldValue(Number(scenario[field.key]) || 0, field);
+    const nextValue = normalizeFieldValue(currentValue + field.step * direction, field);
+    setScenario((current) => {
+      return normalizeScenarioAfterField(current, field, nextValue);
+    });
+    setEditingValues((current) => {
+      const next = { ...current };
+      delete next[field.key];
+      return next;
+    });
+  }
+
+  function updateSalaryField(age, key, value) {
+    const sanitizedValue = sanitizeNumberInput(value, { min: 0, decimals: 0 });
+    const parsedValue = parseInputNumber(sanitizedValue, 0);
+    setEditingValues((current) => ({ ...current, [`salary-${age}-${key}`]: sanitizedValue }));
+    if (!Number.isFinite(parsedValue)) return;
+    setScenario((current) => {
+      const currentRow = getSalaryRow(current, age);
+      const nextRow = { ...currentRow, [key]: Math.max(parsedValue, 0) };
+      if (key === "gross") nextRow.net = Math.round(nextRow.gross * 0.8);
+      return {
+        ...current,
+        salaryDetails: {
+          ...(current.salaryDetails || {}),
+          [age]: nextRow,
+        },
+      };
+    });
+  }
+
+  function commitSalaryField(age, key) {
+    setEditingValues((current) => {
+      const next = { ...current };
+      delete next[`salary-${age}-${key}`];
+      return next;
+    });
+  }
+
+  function stepSalaryField(age, key, direction) {
+    setScenario((current) => {
+      const currentRow = getSalaryRow(current, age);
+      const nextValue = Math.max(0, currentRow[key] + direction * 100000);
+      const nextRow = { ...currentRow, [key]: nextValue };
+      if (key === "gross") nextRow.net = Math.round(nextValue * 0.8);
+      return {
+        ...current,
+        salaryDetails: {
+          ...(current.salaryDetails || {}),
+          [age]: nextRow,
+        },
+      };
+    });
+    commitSalaryField(age, key);
+  }
+
+  function updateEvent(index, key, value) {
+    if (key === "name") {
+      setScenario((current) => {
+        const events = [...(current.events || defaultScenario.events)];
+        events[index] = { ...(events[index] || defaultScenario.events[index]), name: value };
+        return { ...current, events };
+      });
+      return;
+    }
+    const field = key === "age" ? { min: 0, max: 120, decimals: 0 } : { min: -99999, decimals: 0 };
+    const sanitizedValue = sanitizeNumberInput(value, field);
+    const parsedValue = parseInputNumber(sanitizedValue, 0);
+    setEditingValues((current) => ({ ...current, [`event-${index}-${key}`]: sanitizedValue }));
+    setScenario((current) => {
+      const events = [...(current.events || defaultScenario.events)];
+      const currentEvent = { ...(events[index] || defaultScenario.events[index]) };
+      const nextValue = key === "age" ? Math.min(Math.max(parsedValue, 0), 120) : parsedValue;
+      events[index] = { ...currentEvent, [key]: nextValue };
+      return { ...current, events };
+    });
+  }
+
+  function commitEventNumber(index, key) {
+    setEditingValues((current) => {
+      const next = { ...current };
+      delete next[`event-${index}-${key}`];
+      return next;
+    });
+  }
+
+  function stepEventNumber(index, key, direction) {
+    const step = key === "age" ? 1 : 10;
+    setScenario((current) => {
+      const events = [...(current.events || defaultScenario.events)];
+      const currentEvent = { ...(events[index] || defaultScenario.events[index]) };
+      const currentValue = Number(currentEvent[key]) || 0;
+    const nextValue = key === "age" ? Math.min(Math.max(currentValue + direction * step, 0), 120) : currentValue + direction * step;
+      events[index] = { ...currentEvent, [key]: nextValue };
+      return { ...current, events };
+    });
+    commitEventNumber(index, key);
+  }
+
+  function renderSalaryInput(age, key, label, disabled) {
+    const value = getSalaryRow(scenario, age)[key];
+    const editKey = `salary-${age}-${key}`;
+    return h(
+      "label",
+      { className: "field salaryField" },
+      h("span", null, label),
+      h(
+        "div",
+        { className: "numberInput" },
+        h("input", {
+          type: "text",
+          inputMode: "numeric",
+          value: editingValues[editKey] ?? formatInputNumber(value, 0),
+          onChange: (event) => updateSalaryField(age, key, event.target.value),
+          onBlur: () => commitSalaryField(age, key),
+          disabled,
+        }),
+        h("em", null, "円"),
+        h(
+          "div",
+          { className: "stepper" },
+          h(
+            "button",
+            {
+              type: "button",
+              className: "stepButton",
+              onClick: () => stepSalaryField(age, key, 1),
+              disabled,
+              "aria-label": `${label}を増やす`,
+            },
+            "▲",
+          ),
+          h(
+            "button",
+            {
+              type: "button",
+              className: "stepButton",
+              onClick: () => stepSalaryField(age, key, -1),
+              disabled,
+              "aria-label": `${label}を減らす`,
+            },
+            "▼",
+          ),
+        ),
+      ),
+    );
+  }
+
+  function renderSalaryModal() {
+    return h(
+      "div",
+      { className: "modalBackdrop", role: "presentation", onMouseDown: () => setIsSalaryModalOpen(false) },
+      h(
+        "div",
+        { className: "modalWindow salaryModal", role: "dialog", "aria-modal": "true", "aria-labelledby": "salary-title", onMouseDown: (event) => event.stopPropagation() },
+        h(
+          "div",
+          { className: "modalHeader" },
+          h("h2", { id: "salary-title" }, "年収詳細"),
+          h("button", { type: "button", className: "modalCloseButton", onClick: () => setIsSalaryModalOpen(false), "aria-label": "年収詳細を閉じる" }, "×"),
+        ),
+        h(
+          "div",
+          { className: "salaryRows" },
+          salaryAges.map((age) => {
+            const disabled = age < Number(scenario.currentAge);
+            return h(
+              "div",
+              { className: `salaryRow${disabled ? " disabledSalaryRow" : ""}`, key: age },
+              h("div", { className: "salaryAgeCell" }, h("span", null, "年齢"), h("strong", null, `${age}歳`)),
+              renderSalaryInput(age, "gross", "年収（額面）", disabled),
+              renderSalaryInput(age, "net", "年収（手取り）", disabled),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  function renderEventNumberInput(index, key, suffix, label) {
+    const event = (scenario.events || defaultScenario.events)[index] || defaultScenario.events[index];
+    const value = key === "age" && (event[key] === null || event[key] === undefined || event[key] === "") ? Number(scenario.currentAge) : Number(event[key]) || 0;
+    const editKey = `event-${index}-${key}`;
+    return h(
+      "label",
+      { className: "field eventNumberField" },
+      h("span", null, label),
+      h(
+        "div",
+        { className: "numberInput" },
+        h("input", {
+          type: "text",
+          inputMode: "numeric",
+          value: editingValues[editKey] ?? formatInputNumber(value, 0),
+          onChange: (eventObject) => updateEvent(index, key, eventObject.target.value),
+          onBlur: () => commitEventNumber(index, key),
+        }),
+        h("em", null, suffix),
+        h(
+          "div",
+          { className: "stepper" },
+          h("button", { type: "button", className: "stepButton", onClick: () => stepEventNumber(index, key, 1), "aria-label": `${label}を増やす` }, "▲"),
+          h("button", { type: "button", className: "stepButton", onClick: () => stepEventNumber(index, key, -1), "aria-label": `${label}を減らす` }, "▼"),
+        ),
+      ),
+    );
+  }
+
+  function renderEventModal() {
+    const events = scenario.events || defaultScenario.events;
+    const hasLongName = events.some((event) => String(event.name || "").length > 8);
+    return h(
+      "div",
+      { className: "modalBackdrop", role: "presentation", onMouseDown: () => setIsEventModalOpen(false) },
+      h(
+        "div",
+        { className: "modalWindow eventModal", role: "dialog", "aria-modal": "true", "aria-labelledby": "event-title", onMouseDown: (event) => event.stopPropagation() },
+        h(
+          "div",
+          { className: "modalHeader" },
+          h("h2", { id: "event-title" }, "イベント等"),
+          h("button", { type: "button", className: "modalCloseButton", onClick: () => setIsEventModalOpen(false), "aria-label": "イベント等を閉じる" }, "×"),
+        ),
+        hasLongName ? h("p", { className: "eventNameError" }, "8文字までで入力してください") : null,
+        h(
+          "div",
+          { className: "eventRows" },
+          Array.from({ length: 5 }, (_, index) => {
+            const event = events[index] || defaultScenario.events[index];
+            const hasCustomAge = event.age !== null && event.age !== undefined && event.age !== "" && Number(event.age) !== Number(scenario.currentAge);
+            const hasValue = hasCustomAge || Number(event.costMan) !== 0;
+            return h(
+              "div",
+              { className: `eventRow${hasValue ? " activeEventRow" : ""}`, key: index },
+              h(
+                "label",
+                { className: "field eventNameField" },
+                h("span", null, "イベント名"),
+                h("input", {
+                  type: "text",
+                  value: event.name || "",
+                  onChange: (eventObject) => updateEvent(index, "name", eventObject.target.value),
+                  maxLength: 20,
+                }),
+              ),
+              renderEventNumberInput(index, "age", "歳", "年齢"),
+              renderEventNumberInput(index, "costMan", "万円", "費用"),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  function stepCashflowScale(direction) {
+    setCashflowScale((current) => Math.min(Math.max(current + direction * 10000000, 10000000), 100000000));
+  }
+
+  function runForecast() {
+    const nextForecastScenario = { ...scenario };
+    setForecastScenario(nextForecastScenario);
+    const currentSelectedAge = Number(selectedAssetAge);
+    const minAge = Number(nextForecastScenario.currentAge);
+    const maxAge = Math.max(Number(nextForecastScenario.lifeExpectancy), minAge);
+    if (currentSelectedAge < minAge || currentSelectedAge > maxAge) {
+      setSelectedAssetAge(Math.min(Math.max(65, minAge), maxAge));
+    }
+    setActiveTab("chart");
+    document.querySelector(".resultPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function stepChartZoom(direction) {
+    setChartZoom((current) => Number(Math.min(Math.max(current + direction * 0.25, 0.75), 2.5).toFixed(2)));
+  }
+
+  function storeScenario(namedScenario) {
+    const normalized = normalizeLoadedScenario(namedScenario);
+    setSaved((current) => [normalized, ...current.filter((item) => item.name !== normalized.name)].slice(0, 12));
+    setScenario(normalized);
+    setSelectedIndex(`saved:${normalized.id}`);
+    setLoadedSnapshot(getScenarioSnapshot(normalized));
+  }
+
+  async function exportScenarioFile() {
+    let scenarioToSave = {
+      ...scenario,
+      id: scenario.id && scenario.id !== DEFAULT_SCENARIO_ID ? scenario.id : crypto.randomUUID(),
+      savedAt: new Date().toISOString(),
+      exportedAt: new Date().toISOString(),
+    };
+    let filename = makeScenarioFilename(scenarioToSave.name);
+
+    if ("showSaveFilePicker" in window) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+        });
+        const savedName = handle.name?.replace(/\.json$/i, "").trim();
+        if (savedName) {
+          scenarioToSave = { ...scenarioToSave, name: savedName };
+          filename = makeScenarioFilename(savedName);
+        }
+        const blob = new Blob([JSON.stringify(scenarioToSave, null, 2)], { type: "application/json" });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        storeScenario(scenarioToSave);
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+      }
+    }
+
+    const blob = new Blob([JSON.stringify(scenarioToSave, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    storeScenario(scenarioToSave);
+  }
+
+  function loadScenario(selection) {
+    const hasChanges = getScenarioSnapshot(scenario) !== loadedSnapshot;
+    if (hasChanges) {
+      setPendingScenarioSelection(selection);
+      return;
+    }
+    applyScenarioSelection(selection);
+  }
+
+  function applyScenarioSelection(selection) {
+    if (selection === DEFAULT_SCENARIO_ID) {
+      const nextScenario = normalizeLoadedScenario(defaultScenario);
+      setSelectedIndex(DEFAULT_SCENARIO_ID);
+      setScenario(nextScenario);
+      setLoadedSnapshot(getScenarioSnapshot(nextScenario));
+      return;
+    }
+    const id = selection.replace(/^saved:/, "");
+    const item = saved.find((scenarioItem) => scenarioItem.id === id);
+    if (!item) return;
+    const nextScenario = normalizeLoadedScenario(item);
+    setSelectedIndex(selection);
+    setScenario(nextScenario);
+    setLoadedSnapshot(getScenarioSnapshot(nextScenario));
+  }
+
+  function continueScenarioSelection() {
+    const selection = pendingScenarioSelection;
+    setPendingScenarioSelection(null);
+    if (selection) applyScenarioSelection(selection);
+  }
+
+  function cancelScenarioSelection() {
+    setPendingScenarioSelection(null);
+  }
+
+  function renderNumberField(field) {
+    const isDisabled = field.key === "cashCapAmount" && scenario.cashCapNone;
+    const fieldLabel = getFieldLabel(field);
+    if (field.type === "select") {
+      return h(
+        "label",
+        { className: "field", key: field.key },
+        h("span", null, fieldLabel),
+        h(
+          "select",
+          {
+            value: scenario[field.key],
+            onChange: (event) => setScenario((current) => normalizeScenarioAfterField(current, field, event.target.value)),
+          },
+          field.options.map((option) => h("option", { key: option.value, value: option.value }, option.label)),
+        ),
+      );
+    }
+
+    return h(
+      "label",
+      { className: "field", key: field.key },
+      h("span", null, fieldLabel),
+      h(
+        "div",
+        { className: "numberInput" },
+        h("input", {
+          type: "text",
+          inputMode: "decimal",
+          min: field.min,
+          max: field.max,
+          step: field.step,
+          value: editingValues[field.key] ?? formatInputNumber(scenario[field.key], field.decimals),
+          onChange: (event) => updateNumberField(field, event.target.value),
+          onBlur: () => commitNumberField(field),
+          disabled: isDisabled,
+        }),
+        h("em", null, field.suffix),
+        h(
+          "div",
+          { className: "stepper" },
+          h(
+            "button",
+            {
+              type: "button",
+              className: "stepButton",
+              onClick: () => stepNumberField(field, 1),
+              disabled: isDisabled || Number(scenario[field.key]) >= (field.max ?? Infinity),
+              "aria-label": `${fieldLabel}を増やす`,
+            },
+            "▲",
+          ),
+          h(
+            "button",
+            {
+              type: "button",
+              className: "stepButton",
+              onClick: () => stepNumberField(field, -1),
+              disabled: isDisabled || Number(scenario[field.key]) <= (field.min ?? -Infinity),
+              "aria-label": `${fieldLabel}を減らす`,
+            },
+            "▼",
+          ),
+        ),
+      ),
+    );
+  }
+
+  function resetHomeAsset() {
+    setScenario((current) => withCurrentTotalAssets({
+      ...current,
+      homePurchaseAmount: 0,
+      homePurchaseAge: Number(current.currentAge),
+      depreciationType: "house",
+      mortgageAmount: 0,
+      mortgageYears: 35,
+      mortgageRate: Number(current.inflationRate) || defaultScenario.mortgageRate,
+    }));
+  }
+
+  function resetCarAsset() {
+    setScenario((current) => withCurrentTotalAssets({
+      ...current,
+      carPurchaseAmount: 0,
+      carPurchaseAge: Number(current.currentAge),
+      carDepreciationType: "yes",
+      carRecurringPurchase: false,
+    }));
+  }
+
+  function renderFinancialAssetFields() {
+    return h(
+      "div",
+      { className: "assetGroupStack" },
+      h(
+        "section",
+        { className: "assetInputGroup currentAssetGroup" },
+        h("h3", null, "金融資産（現在）"),
+        h(
+          "div",
+          { className: "fieldGrid financialAssetGrid" },
+          assetDetailFields.slice(0, 4).map((field) => renderNumberField(field)),
+        ),
+      ),
+      h(
+        "section",
+        { className: "assetInputGroup investmentAssetGroup" },
+        h("h3", null, "組入資産"),
+        h(
+          "div",
+          { className: "fieldGrid financialAssetGrid" },
+          assetDetailFields.slice(4, 8).map((field) => renderNumberField(field)),
+        ),
+        h(
+          "div",
+          { className: "capFieldRow" },
+          renderNumberField(assetDetailFields[8]),
+          h(
+            "label",
+            { className: "toggleControl smallToggle" },
+            h("input", {
+              type: "checkbox",
+              checked: Boolean(scenario.cashCapNone),
+              onChange: (event) =>
+                setScenario((current) => ({
+                  ...current,
+                  cashCapNone: event.target.checked,
+                  cashCapAmount: event.target.checked ? current.cashCapAmount : current.cashCapAmount || current.currentCashAmount,
+                })),
+            }),
+            h("span", null, "なし"),
+          ),
+        ),
+      ),
+    );
+  }
+
+  function renderOtherAssetFields() {
+    return h(
+      "div",
+      { className: "assetGroupStack" },
+      h(
+        "section",
+        { className: "assetInputGroup homeGroup" },
+        h(
+          "div",
+          { className: "groupHeader" },
+          h("h3", null, "自宅"),
+          h("button", { type: "button", className: "groupResetButton", onClick: resetHomeAsset }, "リセット"),
+        ),
+        h(
+          "div",
+          { className: "fieldGrid otherAssetGrid" },
+          otherAssetDetailFields.slice(0, 6).map((field) => renderNumberField(field)),
+        ),
+      ),
+      h(
+        "section",
+        { className: "assetInputGroup carGroup" },
+        h(
+          "div",
+          { className: "groupHeader" },
+          h("h3", null, "車"),
+          h("button", { type: "button", className: "groupResetButton", onClick: resetCarAsset }, "リセット"),
+          h(
+            "label",
+            { className: "toggleControl smallToggle" },
+            h("input", {
+              type: "checkbox",
+              checked: Boolean(scenario.carRecurringPurchase),
+              onChange: (event) => setScenario((current) => ({ ...current, carRecurringPurchase: event.target.checked })),
+            }),
+            h("span", null, "買い替えあり"),
+          ),
+        ),
+        h(
+          "div",
+          { className: "fieldGrid carAssetGrid" },
+          otherAssetDetailFields.slice(6).map((field) => renderNumberField(field)),
+        ),
+      ),
+    );
+  }
+
+  return h(
+    "main",
+    { className: "app" },
+    h(
+      "section",
+      { className: "topBar" },
+      h(
+        "div",
+        { className: "brandBlock" },
+        h("p", { className: "eyebrow" }, "LIFE PLANNING SIMULATOR"),
+        h("h1", null, "将来資産シミュレーター"),
+        h(
+          "nav",
+          { className: "pageNav", "aria-label": "補助ページ" },
+          h("button", { type: "button", className: activePage === "app" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("app") }, "シミュレーター"),
+          h("button", { type: "button", className: activePage === "usage" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("usage") }, "使い方"),
+          h("button", { type: "button", className: activePage === "disclaimer" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("disclaimer") }, "免責事項"),
+          h("button", { type: "button", className: activePage === "privacy" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("privacy") }, "プライバシー"),
+        ),
+      ),
+      h(
+        "div",
+        { className: "scenarioTools" },
+        h(
+          "select",
+          { value: selectedIndex, onChange: (event) => loadScenario(event.target.value), "aria-label": "保存シナリオ" },
+          h("option", { value: DEFAULT_SCENARIO_ID }, DEFAULT_SCENARIO_NAME),
+          saved.map((item, index) => h("option", { key: item.id || `${item.name}-${index}`, value: `saved:${item.id}` }, item.name)),
+        ),
+        h("button", { type: "button", onClick: exportScenarioFile, className: "saveButton fileSaveButton", "aria-label": "現在のシナリオをファイルに保存" }, "保存"),
+      ),
+    ),
+    activePage !== "app"
+      ? h(InfoPage, { page: activePage, onBack: () => setActivePage("app") })
+      : h(
+      "section",
+      { className: "contentGrid" },
+      h(
+        "div",
+        { className: "panel inputPanel" },
+        h(
+          "div",
+          { className: "fieldGrid" },
+          fields.map((field) => renderNumberField(field)),
+        ),
+        h("div", { className: "detailInputLabel" }, "－詳細を入力－"),
+        h(
+          "div",
+          { className: "detailButtonRow" },
+          h(
+            "button",
+            { type: "button", className: "detailOpenButton", onClick: () => setDetailModal("asset") },
+            "金融資産",
+          ),
+          h(
+            "button",
+            { type: "button", className: "detailOpenButton", onClick: () => setDetailModal("otherAsset") },
+            "自宅・車",
+          ),
+          h(
+            "button",
+            { type: "button", className: "detailOpenButton salaryDetailButton", onClick: () => setIsSalaryModalOpen(true) },
+            "年収詳細",
+          ),
+          h(
+            "button",
+            { type: "button", className: "detailOpenButton", onClick: () => setIsEventModalOpen(true) },
+            "イベント等",
+          ),
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            className: "forecastButton",
+            onClick: runForecast,
+          },
+          "将来予測",
+        ),
+      ),
+      h(
+        "div",
+        { className: "panel chartPanel resultPanel" },
+        h(
+          "div",
+          { className: "panelHeader" },
+          h(
+            "div",
+            { className: "tabControl", role: "tablist", "aria-label": "表示切替" },
+            h(
+              "button",
+              {
+                type: "button",
+                className: activeTab === "chart" ? "tabButton active" : "tabButton",
+                onClick: () => setActiveTab("chart"),
+                role: "tab",
+                "aria-selected": activeTab === "chart",
+              },
+              "資産推移",
+            ),
+            h(
+              "button",
+              {
+                type: "button",
+                className: activeTab === "cashflow" ? "tabButton active" : "tabButton",
+                onClick: () => setActiveTab("cashflow"),
+                role: "tab",
+                "aria-selected": activeTab === "cashflow",
+              },
+              "年齢別キャッシュフロー",
+            ),
+          ),
+          h(
+            "div",
+            { className: "chartTools" },
+            activeTab === "chart"
+              ? h(
+                  "label",
+                  { className: "toggleControl" },
+                  h("input", {
+                    type: "checkbox",
+                    checked: showCashflow,
+                    onChange: (event) => setShowCashflow(event.target.checked),
+                  }),
+                  h("span", null, "収支"),
+                )
+              : null,
+            h("span", { className: "chip" }, activeTab === "chart" ? `${forecastScenario.currentAge}歳から${forecastScenario.lifeExpectancy}歳` : `${projection.rows.length}年分`),
+          ),
+        ),
+        activeTab === "chart"
+          ? h(AssetChart, { data: projection.rows, showCashflow, cashflowScale, onStepCashflowScale: stepCashflowScale, onOpen: () => setIsChartModalOpen(true) })
+          : h(
+              "div",
+              { className: "tableWrap tabTableWrap" },
+              h(
+                "table",
+                null,
+                h(
+                  "thead",
+                  null,
+                  h(
+                    "tr",
+                    null,
+                    h("th", { className: "ageCell" }, "年齢"),
+                    h("th", { className: "compactMoneyCell" }, "年収"),
+                    h("th", { className: "compactMoneyCell" }, "支出"),
+                    h("th", { className: "compactMoneyCell" }, "収支"),
+                    h("th", { className: "assetEndCell" }, "年末資産"),
+                  ),
+                ),
+                h(
+                  "tbody",
+                  null,
+                  projection.rows.map((row) =>
+                    h(
+                      "tr",
+                      { key: row.age, className: row.closingAssets <= 0 ? "dangerRow" : "" },
+                      h("td", { className: "ageCell" }, `${row.age}歳`),
+                      h("td", { className: "compactMoneyCell" }, compactManYen(row.annualIncome)),
+                      h("td", { className: "compactMoneyCell" }, compactManYen(row.annualExpenses)),
+                      h("td", { className: "compactMoneyCell" }, compactManYen(row.annualCashflow)),
+                      h("td", { className: "assetEndCell" }, yen(row.closingAssets)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        h(
+          "div",
+          { className: "summaryGrid chartSummary twoMetricSummary" },
+          h(AssetForecastMetric, { depletionAge: projection.depletionAge, deficitStartAge }),
+          h(
+            "article",
+            { className: "metric assetAgeMetric" },
+            h(
+              "label",
+              { className: "assetAgeLabel" },
+              h(
+                "select",
+                {
+                  value: selectedAssetAge,
+                  onChange: (event) => setSelectedAssetAge(Number(event.target.value)),
+                  "aria-label": "資産表示年齢",
+                },
+                projection.rows.map((row) => h("option", { key: row.age, value: row.age }, row.age)),
+              ),
+              h("span", null, "歳時点の資産"),
+            ),
+            h(
+              "button",
+              {
+                type: "button",
+                className: "assetValueButton",
+                onClick: () => setIsBreakdownOpen(true),
+                disabled: !selectedAssetRow,
+              },
+              selectedAssetRow ? yen(selectedAssetRow.closingAssets) : "-",
+            ),
+          ),
+        ),
+      ),
+    ),
+    isScenarioNameOpen
+      ? h(
+          "div",
+          { className: "modalBackdrop", role: "presentation", onMouseDown: () => setIsScenarioNameOpen(false) },
+          h(
+            "div",
+            { className: "modalWindow compactModal", role: "dialog", "aria-modal": "true", "aria-labelledby": "scenario-name-title", onMouseDown: (event) => event.stopPropagation() },
+            h(
+              "div",
+              { className: "modalHeader" },
+              h("h2", { id: "scenario-name-title" }, "シナリオ名"),
+              h("button", { type: "button", className: "modalCloseButton", onClick: () => setIsScenarioNameOpen(false), "aria-label": "シナリオ名入力を閉じる" }, "×"),
+            ),
+            h("label", { className: "field" }, h("span", null, "シナリオ名"), h("input", { value: scenarioNameDraft, onChange: (event) => setScenarioNameDraft(event.target.value), autoFocus: true })),
+            h("button", { type: "button", className: "saveButton modalActionButton", onClick: confirmScenarioName }, "完了"),
+          ),
+        )
+      : null,
+    pendingScenarioSelection
+      ? h(
+          "div",
+          { className: "modalBackdrop", role: "presentation", onMouseDown: cancelScenarioSelection },
+          h(
+            "div",
+            { className: "modalWindow compactModal", role: "dialog", "aria-modal": "true", "aria-labelledby": "scenario-confirm-title", onMouseDown: (event) => event.stopPropagation() },
+            h(
+              "div",
+              { className: "modalHeader" },
+              h("h2", { id: "scenario-confirm-title" }, "確認"),
+            ),
+            h("p", { className: "confirmMessage" }, "現在のシナリオは保存されていません。このまま続行しますか？"),
+            h(
+              "div",
+              { className: "confirmActionRow" },
+              h("button", { type: "button", className: "saveButton secondaryActionButton", onClick: cancelScenarioSelection }, "取消"),
+              h("button", { type: "button", className: "saveButton", onClick: continueScenarioSelection }, "続行"),
+            ),
+          ),
+        )
+      : null,
+    isSalaryModalOpen ? renderSalaryModal() : null,
+    isEventModalOpen ? renderEventModal() : null,
+    isChartModalOpen
+      ? h(
+          "div",
+          { className: "modalBackdrop", role: "presentation", onMouseDown: () => setIsChartModalOpen(false) },
+          h(
+            "div",
+            { className: "modalWindow chartModal", role: "dialog", "aria-modal": "true", "aria-labelledby": "chart-modal-title", onMouseDown: (event) => event.stopPropagation() },
+            h(
+              "div",
+              { className: "modalHeader chartModalHeader" },
+              h("h2", { id: "chart-modal-title" }, "資産推移グラフ"),
+              h(
+                "div",
+                { className: "chartZoomControls" },
+                h("button", { type: "button", className: "zoomButton", onClick: () => stepChartZoom(-1), disabled: chartZoom <= 0.75, "aria-label": "グラフを縮小" }, "－"),
+                h("span", null, `${Math.round(chartZoom * 100)}%`),
+                h("button", { type: "button", className: "zoomButton", onClick: () => stepChartZoom(1), disabled: chartZoom >= 2.5, "aria-label": "グラフを拡大" }, "＋"),
+                h("button", { type: "button", className: "modalCloseButton", onClick: () => setIsChartModalOpen(false), "aria-label": "グラフを閉じる" }, "×"),
+              ),
+            ),
+            h(
+              "div",
+              { className: "chartModalViewport" },
+              h(
+                "div",
+                { className: "chartZoomStage", style: { transform: `scale(${chartZoom})`, width: `${100 / chartZoom}%` } },
+                h(AssetChart, { data: projection.rows, showCashflow, cashflowScale, onStepCashflowScale: stepCashflowScale }),
+              ),
+            ),
+          ),
+        )
+      : null,
+    detailModal
+      ? h(
+          "div",
+          { className: "modalBackdrop", role: "presentation", onMouseDown: () => setDetailModal(null) },
+          h(
+            "div",
+            { className: "modalWindow", role: "dialog", "aria-modal": "true", "aria-labelledby": "details-title", onMouseDown: (event) => event.stopPropagation() },
+            h(
+              "div",
+              { className: "modalHeader" },
+              h(
+                "div",
+                { className: "modalTitleBlock" },
+                h("h2", { id: "details-title" }, detailModal === "asset" ? "金融資産" : "自宅・車"),
+                detailModal === "otherAsset" ? h("span", null, "※過去に取得したものは取得当時のものを入力") : null,
+              ),
+              h("button", { type: "button", className: "modalCloseButton", onClick: () => setDetailModal(null), "aria-label": "詳細を閉じる" }, "×"),
+            ),
+            detailModal === "asset"
+              ? h(
+                  "div",
+                  { className: "detailSummary" },
+                  h("span", null, "金融資産（現在）"),
+                  h("strong", null, yen((Number(scenario.currentCashAmount) || 0) + (Number(scenario.currentStockAmount) || 0))),
+                  h("span", null, "加重利回り"),
+                  h("strong", null, `${formatInputNumber(getWeightedReturn(scenario), 1)}%`),
+                )
+              : null,
+            detailModal === "otherAsset"
+              ? renderOtherAssetFields()
+              : detailModal === "asset"
+                ? renderFinancialAssetFields()
+              : h(
+                  "div",
+                  { className: "fieldGrid detailFieldGrid" },
+                  assetDetailFields.map((field) => renderNumberField(field)),
+                ),
+          ),
+        )
+      : null,
+    isBreakdownOpen
+      ? h(
+          "div",
+          { className: "modalBackdrop", role: "presentation", onMouseDown: () => setIsBreakdownOpen(false) },
+          h(
+            "div",
+            { className: "modalWindow", role: "dialog", "aria-modal": "true", "aria-labelledby": "breakdown-title", onMouseDown: (event) => event.stopPropagation() },
+            h(
+              "div",
+              { className: "modalHeader" },
+              h("h2", { id: "breakdown-title" }, `${selectedAssetAge}歳時点の資産内訳`),
+              h("button", { type: "button", className: "modalCloseButton", onClick: () => setIsBreakdownOpen(false), "aria-label": "資産内訳を閉じる" }, "×"),
+            ),
+            h(
+              "div",
+              { className: "breakdownList" },
+              h("h3", null, "金融資産"),
+              h("div", { className: "breakdownRow" }, h("span", null, "現預金"), h("strong", null, yen(selectedBreakdown.cash))),
+              h("div", { className: "breakdownRow" }, h("span", null, "株式等"), h("strong", null, yen(selectedBreakdown.stocks))),
+              h("div", { className: "breakdownRow subtotal" }, h("span", null, "小計"), h("strong", null, yen(selectedBreakdown.financialAssets))),
+              h("h3", null, "その他資産"),
+              h("div", { className: "breakdownRow" }, h("span", null, "自宅"), h("strong", null, yen(selectedBreakdown.homeAsset))),
+              h("div", { className: "breakdownRow negativeAmount" }, h("span", null, "住宅ローン残高"), h("strong", null, yen(-selectedBreakdown.mortgageBalance))),
+              h("div", { className: "breakdownRow" }, h("span", null, "車"), h("strong", null, yen(selectedBreakdown.carAsset))),
+              h("div", { className: "breakdownRow subtotal" }, h("span", null, "小計"), h("strong", null, yen(selectedBreakdown.otherSubtotal))),
+              h("div", { className: "breakdownRow total" }, h("span", null, "合計"), h("strong", null, yen(selectedBreakdown.total))),
+            ),
+          ),
+        )
+      : null,
+  );
+}
+
+createRoot(document.getElementById("root")).render(h(App));
