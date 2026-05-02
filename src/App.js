@@ -1238,8 +1238,18 @@ function App() {
   }
 
   function clearNumberField(field) {
-    const clearValue = clampValue(0, field);
-    setScenario((current) => normalizeScenarioAfterField(current, field, clearValue));
+    setScenario((current) => {
+      if (field.key === "currentAssets") {
+        return {
+          ...current,
+          currentAssets: 0,
+          currentCashAmount: 0,
+          currentStockAmount: 0,
+          cashCapAmount: current.cashCapNone ? 0 : current.cashCapAmount,
+        };
+      }
+      return normalizeScenarioAfterField(current, { ...field, min: Math.min(0, field.min ?? 0) }, 0);
+    });
     setEditingValues((current) => {
       const next = { ...current };
       delete next[field.key];

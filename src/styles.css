@@ -1581,7 +1581,7 @@ thead th:nth-child(4)::after {
   }
 
   .numberInput {
-    grid-template-columns: minmax(0, 1fr) 24px 48px 48px 58px;
+    grid-template-columns: minmax(0, 1fr) 20px 38px 38px 38px;
     gap: 6px;
   }
 
@@ -1619,7 +1619,7 @@ thead th:nth-child(4)::after {
   .clearNumberButton {
     background: #fff7f0;
     color: #8f4d19;
-    font-size: 0.74rem;
+    font-size: 0.62rem;
   }
 
   .otherAssetGrid {
