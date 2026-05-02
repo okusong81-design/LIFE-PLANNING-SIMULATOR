@@ -9,10 +9,10 @@ const DEFAULT_SCENARIO_NAME = "将来資産シナリオ";
 const defaultScenario = {
   id: DEFAULT_SCENARIO_ID,
   name: DEFAULT_SCENARIO_NAME,
-  currentAge: 35,
+  currentAge: 40,
   lifeExpectancy: 95,
   currentAssets: 5000000,
-  monthlyIncome: 4000000,
+  monthlyIncome: 4500000,
   monthlyExpenses: 250000,
   retirementExpenses: 250000,
   retirementAge: 65,
@@ -31,13 +31,13 @@ const defaultScenario = {
   cashCapNone: true,
   cashCapAmount: 1500000,
   homePurchaseAmount: 0,
-  homePurchaseAge: 35,
+  homePurchaseAge: 40,
   depreciationType: "house",
   mortgageAmount: 0,
   mortgageYears: 35,
   mortgageRate: 2,
   carPurchaseAmount: 0,
-  carPurchaseAge: 35,
+  carPurchaseAge: 40,
   carDepreciationType: "yes",
   carRecurringPurchase: false,
   salaryDetails: {},
@@ -46,19 +46,25 @@ const defaultScenario = {
 
 const salaryAges = [20, 30, 40, 50, 60];
 
-const fields = [
+const mainFields = [
   { key: "currentAge", label: "現在年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
-  { key: "lifeExpectancy", label: "想定寿命", suffix: "歳", min: 1, max: 130, step: 1, decimals: 0 },
-  { key: "monthlyIncome", label: "年収（手取り）", suffix: "円", min: 0, step: 100000, decimals: 0 },
+  { key: "currentAssets", label: "資産（預貯金等）", suffix: "円", min: 1000000, step: 1000000, decimals: 0, roundToStep: true },
+  { key: "monthlyIncome", label: "年収（額面）", suffix: "円", min: 0, step: 100000, decimals: 0 },
   { key: "monthlyExpenses", label: "支出（月額・生活費等）", suffix: "円", min: 0, step: 10000, decimals: 0 },
-  { key: "currentAssets", label: "総資産（現在）", suffix: "円", min: 1000000, step: 1000000, decimals: 0, roundToStep: true },
-  { key: "annualReturn", label: "運用利回り", suffix: "%", min: -20, max: 30, step: 1, decimals: 1 },
+];
+
+const detailFields = [
+  { key: "lifeExpectancy", label: "想定寿命", suffix: "歳", min: 1, max: 130, step: 1, decimals: 0 },
+  { key: "inflationRate", label: "インフレ率", suffix: "%", min: -10, max: 20, step: 0.1, decimals: 1 },
   { key: "retirementAge", label: "退職年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
   { key: "retirementBonus", label: "退職金", suffix: "円", min: 0, step: 1000000, decimals: 0, roundToStep: true },
   { key: "pensionMonthly", label: "年金（月額）　65歳～", suffix: "円", min: 0, step: 10000, decimals: 0 },
   { key: "retirementExpenses", label: "老後支出", suffix: "円", min: 0, step: 10000, decimals: 0 },
-  { key: "inflationRate", label: "インフレ率", suffix: "%", min: -10, max: 20, step: 0.1, decimals: 1 },
 ];
+
+const detailDefaultCheckKeys = detailFields.map((field) => field.key);
+
+const annualReturnField = { key: "annualReturn", label: "運用利回り（加重）", suffix: "%", min: -20, max: 30, step: 1, decimals: 1 };
 
 const assetDetailFields = [
   { key: "currentCashAmount", label: "現預金額", suffix: "円", min: -1000000000, step: 100000, decimals: 0, roundToStep: true, group: "現在資産" },
@@ -164,7 +170,12 @@ function formatInputNumber(value, decimals = 0) {
 }
 
 function getDefaultGrossIncome(input) {
-  return Math.round((Number(input.monthlyIncome) || 0) / 0.8);
+  return Math.round(Number(input.monthlyIncome) || 0);
+}
+
+function getSalaryAgesForInput(input) {
+  const currentAge = Math.round(Number(input.currentAge) || 0);
+  return [...new Set([...salaryAges, currentAge])].sort((a, b) => a - b);
 }
 
 function getSalaryRow(input, age) {
@@ -176,7 +187,7 @@ function getSalaryRow(input, age) {
 
 function getAnnualIncomeForAge(input, age) {
   if (age < Number(input.currentAge)) return 0;
-  const sortedAges = [...salaryAges].sort((a, b) => a - b);
+  const sortedAges = getSalaryAgesForInput(input);
   if (age <= sortedAges[0]) return getSalaryRow(input, sortedAges[0]).net;
   for (let index = 1; index < sortedAges.length; index += 1) {
     const previousAge = sortedAges[index - 1];
@@ -496,6 +507,10 @@ function getScenarioSnapshot(input) {
   return JSON.stringify(rest);
 }
 
+function areDetailInputsDefault(input) {
+  return detailDefaultCheckKeys.every((key) => Number(input[key]) === Number(defaultScenario[key]));
+}
+
 function makeScenarioFilename(name) {
   const safeName = String(name || "scenario").replace(/[\\/:*?"<>|]/g, "_").trim() || "scenario";
   return `${safeName}.json`;
@@ -645,17 +660,20 @@ const infoPages = {
       {
         title: "基本入力",
         items: [
-          "現在年齢、想定寿命、年収、支出、総資産、退職年齢、退職金、年金、インフレ率を入力します。",
+          "まずは現在年齢、資産（預貯金等）、年収（額面）、支出（月額・生活費等）を入力します。",
+          "年収は額面で入力し、将来予測では手取り額を額面の80%として計算します。",
           "数値欄は直接入力のほか、右側の▲▼で増減できます。",
-          "入力しただけでは結果に反映されません。内容を確認してから「将来予測」を押してください。",
+          "入力しただけでは結果に反映されません。内容を確認してから「将来予測」を押すと右側の結果が更新されます。",
         ],
       },
       {
         title: "詳細入力",
         items: [
-          "金融資産では、現預金・株式等の現在額、利回り、今後の組入割合、現預金上限を設定できます。",
+          "「さらに詳細に入力」を開くと、想定寿命、インフレ率、退職年齢、退職金、年金、老後支出を入力できます。",
+          "詳細項目を変更しない場合は、一般的な数値・条件等により簡易予測します。",
+          "金融資産では、現預金・株式等の現在額、利回り、今後の組入割合、現預金上限、運用利回り（加重）を設定できます。",
           "自宅・車では、購入額、取得年齢、減価償却、住宅ローン、車の買い替えを設定できます。",
-          "年収詳細では、20歳から60歳までの10歳単位の年収を入力できます。",
+          "年収詳細では、現在年齢を含む各年代の年収（額面）と年収（手取り）を入力できます。",
           "イベント等では、最大5件の一時的な費用または収入を年齢ごとに登録できます。費用をマイナスで入力すると、その年齢で資産に加算されます。",
         ],
       },
@@ -963,6 +981,9 @@ function App() {
   const [activePage, setActivePage] = useState("app");
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [chartZoom, setChartZoom] = useState(1);
+  const [isDetailInputOpen, setIsDetailInputOpen] = useState(false);
+  const [hasForecastRun, setHasForecastRun] = useState(false);
+  const [showDefaultDetailNotice, setShowDefaultDetailNotice] = useState(false);
   const projection = useMemo(() => calculateProjection(forecastScenario), [forecastScenario]);
   const selectedAssetRow = projection.rows.find((row) => row.age === Number(selectedAssetAge));
   const selectedBreakdown = getAssetBreakdown(selectedAssetRow, forecastScenario);
@@ -1235,7 +1256,7 @@ function App() {
         h(
           "div",
           { className: "salaryRows" },
-          salaryAges.map((age) => {
+          getSalaryAgesForInput(scenario).map((age) => {
             const disabled = age < Number(scenario.currentAge);
             return h(
               "div",
@@ -1332,6 +1353,8 @@ function App() {
   function runForecast() {
     const nextForecastScenario = { ...scenario };
     setForecastScenario(nextForecastScenario);
+    setHasForecastRun(true);
+    setShowDefaultDetailNotice(areDetailInputsDefault(nextForecastScenario));
     const currentSelectedAge = Number(selectedAssetAge);
     const minAge = Number(nextForecastScenario.currentAge);
     const maxAge = Math.max(Number(nextForecastScenario.lifeExpectancy), minAge);
@@ -1626,6 +1649,7 @@ function App() {
         { className: "brandBlock" },
         h("p", { className: "eyebrow" }, "LIFE PLANNING SIMULATOR"),
         h("h1", null, "将来資産シミュレーター"),
+        h("p", { className: "heroCopy" }, "あなたの資産は何歳まで持つ？", h("br"), "１分であなたの将来資産を予測（詳細入力も可）"),
         h(
           "nav",
           { className: "pageNav", "aria-label": "補助ページ" },
@@ -1657,34 +1681,63 @@ function App() {
         { className: "panel inputPanel" },
         h(
           "div",
-          { className: "fieldGrid" },
-          fields.map((field) => renderNumberField(field)),
+          { className: "stepGuide" },
+          h("strong", null, "かんたん３ステップ"),
+          h("span", null, "①情報入力"),
+          h("span", null, "②「将来予測」押す"),
+          h("span", null, "③結果確認"),
         ),
-        h("div", { className: "detailInputLabel" }, "－詳細を入力－"),
         h(
           "div",
-          { className: "detailButtonRow" },
-          h(
-            "button",
-            { type: "button", className: "detailOpenButton", onClick: () => setDetailModal("asset") },
-            "金融資産",
-          ),
-          h(
-            "button",
-            { type: "button", className: "detailOpenButton", onClick: () => setDetailModal("otherAsset") },
-            "自宅・車",
-          ),
-          h(
-            "button",
-            { type: "button", className: "detailOpenButton salaryDetailButton", onClick: () => setIsSalaryModalOpen(true) },
-            "年収詳細",
-          ),
-          h(
-            "button",
-            { type: "button", className: "detailOpenButton", onClick: () => setIsEventModalOpen(true) },
-            "イベント等",
-          ),
+          { className: "fieldGrid" },
+          mainFields.map((field) => renderNumberField(field)),
         ),
+        h(
+          "button",
+          {
+            type: "button",
+            className: "detailAccordionButton",
+            onClick: () => setIsDetailInputOpen((current) => !current),
+            "aria-expanded": isDetailInputOpen,
+          },
+          h("span", null, isDetailInputOpen ? "－" : "＋"),
+          h("strong", null, "さらに詳細に入力"),
+        ),
+        isDetailInputOpen
+          ? h(
+              "div",
+              { className: "detailAccordionBody" },
+              h(
+                "div",
+                { className: "fieldGrid" },
+                detailFields.map((field) => renderNumberField(field)),
+              ),
+              h(
+                "div",
+                { className: "detailButtonRow" },
+                h(
+                  "button",
+                  { type: "button", className: "detailOpenButton", onClick: () => setDetailModal("asset") },
+                  "金融資産",
+                ),
+                h(
+                  "button",
+                  { type: "button", className: "detailOpenButton", onClick: () => setDetailModal("otherAsset") },
+                  "自宅・車",
+                ),
+                h(
+                  "button",
+                  { type: "button", className: "detailOpenButton salaryDetailButton", onClick: () => setIsSalaryModalOpen(true) },
+                  "年収詳細",
+                ),
+                h(
+                  "button",
+                  { type: "button", className: "detailOpenButton", onClick: () => setIsEventModalOpen(true) },
+                  "イベント等",
+                ),
+              ),
+            )
+          : null,
         h(
           "button",
           {
@@ -1697,7 +1750,8 @@ function App() {
       ),
       h(
         "div",
-        { className: "panel chartPanel resultPanel" },
+        { className: `panel chartPanel resultPanel${hasForecastRun ? "" : " sampleResultPanel"}` },
+        !hasForecastRun ? h("div", { className: "sampleOverlay", "aria-hidden": "true" }, "SAMPUL") : null,
         h(
           "div",
           { className: "panelHeader" },
@@ -1745,6 +1799,15 @@ function App() {
             h("span", { className: "chip" }, activeTab === "chart" ? `${forecastScenario.currentAge}歳から${forecastScenario.lifeExpectancy}歳` : `${projection.rows.length}年分`),
           ),
         ),
+        showDefaultDetailNotice
+          ? h(
+              "p",
+              { className: "detailNotice" },
+              "入力した項目以外は一般的な数値・条件等により予測しています。",
+              h("br"),
+              "より精緻な予測をするためには詳細な情報を入力してください。",
+            )
+          : null,
         activeTab === "chart"
           ? h(AssetChart, { data: projection.rows, showCashflow, cashflowScale, onStepCashflowScale: stepCashflowScale, onOpen: () => setIsChartModalOpen(true) })
           : h(
@@ -1916,8 +1979,7 @@ function App() {
                   { className: "detailSummary" },
                   h("span", null, "金融資産（現在）"),
                   h("strong", null, yen((Number(scenario.currentCashAmount) || 0) + (Number(scenario.currentStockAmount) || 0))),
-                  h("span", null, "加重利回り"),
-                  h("strong", null, `${formatInputNumber(getWeightedReturn(scenario), 1)}%`),
+                  h("div", { className: "weightedReturnField" }, renderNumberField(annualReturnField)),
                 )
               : null,
             detailModal === "otherAsset"
