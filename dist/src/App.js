@@ -52,7 +52,7 @@ const fields = [
   { key: "monthlyIncome", label: "年収（手取り）", suffix: "円", min: 0, step: 100000, decimals: 0 },
   { key: "monthlyExpenses", label: "支出（月額・生活費等）", suffix: "円", min: 0, step: 10000, decimals: 0 },
   { key: "currentAssets", label: "総資産（現在）", suffix: "円", min: 1000000, step: 1000000, decimals: 0, roundToStep: true },
-  { key: "annualReturn", label: "運用利回り", suffix: "%", min: -20, max: 30, step: 0.1, decimals: 1 },
+  { key: "annualReturn", label: "運用利回り", suffix: "%", min: -20, max: 30, step: 1, decimals: 1 },
   { key: "retirementAge", label: "退職年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
   { key: "retirementBonus", label: "退職金", suffix: "円", min: 0, step: 1000000, decimals: 0, roundToStep: true },
   { key: "pensionMonthly", label: "年金（月額）　65歳～", suffix: "円", min: 0, step: 10000, decimals: 0 },
@@ -613,6 +613,30 @@ function Metric({ label, value, primary = false }) {
   return h("article", { className: `metric${primary ? " primaryMetric" : ""}` }, h("span", null, label), h("strong", null, value));
 }
 
+function getDeficitStartAgeForDepletion(projection) {
+  if (!projection.depletionAge) return null;
+  let deficitStartAge = null;
+  for (const row of projection.rows) {
+    if (row.age > projection.depletionAge) break;
+    if (row.annualCashflow < 0) {
+      if (deficitStartAge === null) deficitStartAge = row.age;
+    } else {
+      deficitStartAge = null;
+    }
+  }
+  return deficitStartAge ?? projection.depletionAge;
+}
+
+function AssetForecastMetric({ depletionAge, deficitStartAge }) {
+  const isDepleted = Boolean(depletionAge);
+  return h(
+    "article",
+    { className: `metric forecastMetric ${isDepleted ? "warningForecast" : "safeForecast"}` },
+    h("strong", null, isDepleted ? `あなたの資産寿命：${depletionAge}歳` : "将来安泰です。"),
+    h("span", null, isDepleted ? `⚠ ${deficitStartAge}歳以降に赤字が続きます。支出見直しや資産拡充が必要です。` : "計画的な資産運用をしましょう！"),
+  );
+}
+
 const infoPages = {
   usage: {
     title: "使い方",
@@ -909,7 +933,7 @@ function App() {
   const projection = useMemo(() => calculateProjection(forecastScenario), [forecastScenario]);
   const selectedAssetRow = projection.rows.find((row) => row.age === Number(selectedAssetAge));
   const selectedBreakdown = getAssetBreakdown(selectedAssetRow, forecastScenario);
-  const assetForecast = projection.depletionAge ? `${projection.depletionAge}歳で資産が尽きます` : "将来安泰です";
+  const deficitStartAge = getDeficitStartAgeForDepletion(projection);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
@@ -1692,7 +1716,19 @@ function App() {
               h(
                 "table",
                 null,
-                h("thead", null, h("tr", null, h("th", null, "年齢"), h("th", null, "年収"), h("th", null, "支出"), h("th", null, "収支"), h("th", null, "年末資産"))),
+                h(
+                  "thead",
+                  null,
+                  h(
+                    "tr",
+                    null,
+                    h("th", { className: "ageCell" }, "年齢"),
+                    h("th", { className: "compactMoneyCell" }, "年収"),
+                    h("th", { className: "compactMoneyCell" }, "支出"),
+                    h("th", { className: "compactMoneyCell" }, "収支"),
+                    h("th", { className: "assetEndCell" }, "年末資産"),
+                  ),
+                ),
                 h(
                   "tbody",
                   null,
@@ -1700,11 +1736,11 @@ function App() {
                     h(
                       "tr",
                       { key: row.age, className: row.closingAssets <= 0 ? "dangerRow" : "" },
-                      h("td", null, `${row.age}歳`),
+                      h("td", { className: "ageCell" }, `${row.age}歳`),
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualIncome)),
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualExpenses)),
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualCashflow)),
-                      h("td", null, yen(row.closingAssets)),
+                      h("td", { className: "assetEndCell" }, yen(row.closingAssets)),
                     ),
                   ),
                 ),
@@ -1713,7 +1749,7 @@ function App() {
         h(
           "div",
           { className: "summaryGrid chartSummary twoMetricSummary" },
-          h(Metric, { label: "資産予測", value: assetForecast, primary: true }),
+          h(AssetForecastMetric, { depletionAge: projection.depletionAge, deficitStartAge }),
           h(
             "article",
             { className: "metric assetAgeMetric" },

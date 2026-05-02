@@ -279,6 +279,33 @@ input:focus {
   color: #ffffff;
 }
 
+.forecastMetric {
+  align-content: center;
+  gap: 8px;
+  min-height: 86px;
+}
+
+.forecastMetric strong {
+  color: #ffffff;
+  font-size: clamp(1.15rem, 2.3vw, 1.55rem);
+}
+
+.forecastMetric span {
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.warningForecast {
+  background: #d97924;
+  border-color: #d97924;
+}
+
+.safeForecast {
+  background: #2f6fab;
+  border-color: #2f6fab;
+}
+
 .assetAgeMetric {
   align-content: start;
 }
@@ -862,13 +889,14 @@ input:focus {
 
 table {
   width: 100%;
-  min-width: 560px;
+  min-width: 0;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 th,
 td {
-  padding: 11px 10px;
+  padding: 9px 6px;
   text-align: right;
   border-bottom: 1px solid #edf1ed;
   white-space: nowrap;
@@ -901,7 +929,16 @@ thead th:nth-child(4)::after {
 }
 
 .compactMoneyCell {
-  width: 5.5em;
+  width: 5.2em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ageCell {
+  width: 5.2em;
+}
+
+.assetEndCell {
+  width: 7.8em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1117,6 +1154,40 @@ thead th:nth-child(4)::after {
   line-height: 1.75;
 }
 
+@media (min-width: 881px) {
+  .resultPanel {
+    justify-content: flex-start;
+  }
+
+  .resultPanel .panelHeader {
+    min-height: 0;
+    margin-bottom: 8px;
+  }
+
+  .resultPanel .chartShell {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .resultPanel .chartShell svg {
+    height: auto;
+    max-height: none;
+  }
+
+  .resultPanel .tabTableWrap {
+    flex: 0 0 auto;
+    max-height: 430px;
+  }
+
+  .resultPanel .chartSummary {
+    margin-top: 10px;
+  }
+
+  .resultPanel .metric {
+    align-content: start;
+  }
+}
+
 @media (max-width: 880px) {
   .app {
     padding: 16px;
@@ -1267,12 +1338,45 @@ thead th:nth-child(4)::after {
   }
 
   .chartShell svg {
-    min-width: 520px;
-    height: 330px;
+    min-width: 0;
+    width: 100%;
+    height: 300px;
   }
 
   .twoMetricSummary {
     grid-template-columns: 1fr;
+  }
+
+  .tabTableWrap {
+    overflow-x: hidden;
+  }
+
+  .tabTableWrap table {
+    table-layout: fixed;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tabTableWrap th,
+  .tabTableWrap td {
+    padding: 7px 2px;
+    font-size: 0.64rem;
+  }
+
+  .tabTableWrap .ageCell {
+    width: 3.4em;
+  }
+
+  .compactMoneyCell {
+    width: 4.2em;
+  }
+
+  .assetEndCell {
+    width: 5.8em;
+  }
+
+  .forecastMetric {
+    min-height: 0;
   }
 
   .infoPageHeader {
@@ -1348,7 +1452,7 @@ const fields = [
   { key: "monthlyIncome", label: "年収（手取り）", suffix: "円", min: 0, step: 100000, decimals: 0 },
   { key: "monthlyExpenses", label: "支出（月額・生活費等）", suffix: "円", min: 0, step: 10000, decimals: 0 },
   { key: "currentAssets", label: "総資産（現在）", suffix: "円", min: 1000000, step: 1000000, decimals: 0, roundToStep: true },
-  { key: "annualReturn", label: "運用利回り", suffix: "%", min: -20, max: 30, step: 0.1, decimals: 1 },
+  { key: "annualReturn", label: "運用利回り", suffix: "%", min: -20, max: 30, step: 1, decimals: 1 },
   { key: "retirementAge", label: "退職年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
   { key: "retirementBonus", label: "退職金", suffix: "円", min: 0, step: 1000000, decimals: 0, roundToStep: true },
   { key: "pensionMonthly", label: "年金（月額）　65歳～", suffix: "円", min: 0, step: 10000, decimals: 0 },
@@ -1909,6 +2013,30 @@ function Metric({ label, value, primary = false }) {
   return h("article", { className: `metric${primary ? " primaryMetric" : ""}` }, h("span", null, label), h("strong", null, value));
 }
 
+function getDeficitStartAgeForDepletion(projection) {
+  if (!projection.depletionAge) return null;
+  let deficitStartAge = null;
+  for (const row of projection.rows) {
+    if (row.age > projection.depletionAge) break;
+    if (row.annualCashflow < 0) {
+      if (deficitStartAge === null) deficitStartAge = row.age;
+    } else {
+      deficitStartAge = null;
+    }
+  }
+  return deficitStartAge ?? projection.depletionAge;
+}
+
+function AssetForecastMetric({ depletionAge, deficitStartAge }) {
+  const isDepleted = Boolean(depletionAge);
+  return h(
+    "article",
+    { className: `metric forecastMetric ${isDepleted ? "warningForecast" : "safeForecast"}` },
+    h("strong", null, isDepleted ? `あなたの資産寿命：${depletionAge}歳` : "将来安泰です。"),
+    h("span", null, isDepleted ? `⚠ ${deficitStartAge}歳以降に赤字が続きます。支出見直しや資産拡充が必要です。` : "計画的な資産運用をしましょう！"),
+  );
+}
+
 const infoPages = {
   usage: {
     title: "使い方",
@@ -2205,7 +2333,7 @@ function App() {
   const projection = useMemo(() => calculateProjection(forecastScenario), [forecastScenario]);
   const selectedAssetRow = projection.rows.find((row) => row.age === Number(selectedAssetAge));
   const selectedBreakdown = getAssetBreakdown(selectedAssetRow, forecastScenario);
-  const assetForecast = projection.depletionAge ? `${projection.depletionAge}歳で資産が尽きます` : "将来安泰です";
+  const deficitStartAge = getDeficitStartAgeForDepletion(projection);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
@@ -2988,7 +3116,19 @@ function App() {
               h(
                 "table",
                 null,
-                h("thead", null, h("tr", null, h("th", null, "年齢"), h("th", null, "年収"), h("th", null, "支出"), h("th", null, "収支"), h("th", null, "年末資産"))),
+                h(
+                  "thead",
+                  null,
+                  h(
+                    "tr",
+                    null,
+                    h("th", { className: "ageCell" }, "年齢"),
+                    h("th", { className: "compactMoneyCell" }, "年収"),
+                    h("th", { className: "compactMoneyCell" }, "支出"),
+                    h("th", { className: "compactMoneyCell" }, "収支"),
+                    h("th", { className: "assetEndCell" }, "年末資産"),
+                  ),
+                ),
                 h(
                   "tbody",
                   null,
@@ -2996,11 +3136,11 @@ function App() {
                     h(
                       "tr",
                       { key: row.age, className: row.closingAssets <= 0 ? "dangerRow" : "" },
-                      h("td", null, `${row.age}歳`),
+                      h("td", { className: "ageCell" }, `${row.age}歳`),
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualIncome)),
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualExpenses)),
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualCashflow)),
-                      h("td", null, yen(row.closingAssets)),
+                      h("td", { className: "assetEndCell" }, yen(row.closingAssets)),
                     ),
                   ),
                 ),
@@ -3009,7 +3149,7 @@ function App() {
         h(
           "div",
           { className: "summaryGrid chartSummary twoMetricSummary" },
-          h(Metric, { label: "資産予測", value: assetForecast, primary: true }),
+          h(AssetForecastMetric, { depletionAge: projection.depletionAge, deficitStartAge }),
           h(
             "article",
             { className: "metric assetAgeMetric" },

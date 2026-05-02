@@ -264,6 +264,33 @@ input:focus {
   color: #ffffff;
 }
 
+.forecastMetric {
+  align-content: center;
+  gap: 8px;
+  min-height: 86px;
+}
+
+.forecastMetric strong {
+  color: #ffffff;
+  font-size: clamp(1.15rem, 2.3vw, 1.55rem);
+}
+
+.forecastMetric span {
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.warningForecast {
+  background: #d97924;
+  border-color: #d97924;
+}
+
+.safeForecast {
+  background: #2f6fab;
+  border-color: #2f6fab;
+}
+
 .assetAgeMetric {
   align-content: start;
 }
@@ -847,13 +874,14 @@ input:focus {
 
 table {
   width: 100%;
-  min-width: 560px;
+  min-width: 0;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 th,
 td {
-  padding: 11px 10px;
+  padding: 9px 6px;
   text-align: right;
   border-bottom: 1px solid #edf1ed;
   white-space: nowrap;
@@ -886,7 +914,16 @@ thead th:nth-child(4)::after {
 }
 
 .compactMoneyCell {
-  width: 5.5em;
+  width: 5.2em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ageCell {
+  width: 5.2em;
+}
+
+.assetEndCell {
+  width: 7.8em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1102,6 +1139,40 @@ thead th:nth-child(4)::after {
   line-height: 1.75;
 }
 
+@media (min-width: 881px) {
+  .resultPanel {
+    justify-content: flex-start;
+  }
+
+  .resultPanel .panelHeader {
+    min-height: 0;
+    margin-bottom: 8px;
+  }
+
+  .resultPanel .chartShell {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .resultPanel .chartShell svg {
+    height: auto;
+    max-height: none;
+  }
+
+  .resultPanel .tabTableWrap {
+    flex: 0 0 auto;
+    max-height: 430px;
+  }
+
+  .resultPanel .chartSummary {
+    margin-top: 10px;
+  }
+
+  .resultPanel .metric {
+    align-content: start;
+  }
+}
+
 @media (max-width: 880px) {
   .app {
     padding: 16px;
@@ -1252,12 +1323,45 @@ thead th:nth-child(4)::after {
   }
 
   .chartShell svg {
-    min-width: 520px;
-    height: 330px;
+    min-width: 0;
+    width: 100%;
+    height: 300px;
   }
 
   .twoMetricSummary {
     grid-template-columns: 1fr;
+  }
+
+  .tabTableWrap {
+    overflow-x: hidden;
+  }
+
+  .tabTableWrap table {
+    table-layout: fixed;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tabTableWrap th,
+  .tabTableWrap td {
+    padding: 7px 2px;
+    font-size: 0.64rem;
+  }
+
+  .tabTableWrap .ageCell {
+    width: 3.4em;
+  }
+
+  .compactMoneyCell {
+    width: 4.2em;
+  }
+
+  .assetEndCell {
+    width: 5.8em;
+  }
+
+  .forecastMetric {
+    min-height: 0;
   }
 
   .infoPageHeader {
