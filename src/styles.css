@@ -627,6 +627,10 @@ input:focus {
   pointer-events: none;
 }
 
+.clearNumberButton {
+  display: none;
+}
+
 .detailFieldGrid {
   margin-top: 14px;
 }
@@ -1574,6 +1578,48 @@ thead th:nth-child(4)::after {
   .fieldGrid {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .numberInput {
+    grid-template-columns: minmax(0, 1fr) 24px 48px 48px 58px;
+    gap: 6px;
+  }
+
+  .numberInput input {
+    min-height: 46px;
+    padding: 0 8px;
+  }
+
+  .numberInput em {
+    font-size: 0.72rem;
+    text-align: center;
+  }
+
+  .stepper {
+    display: contents;
+  }
+
+  .stepButton,
+  .clearNumberButton {
+    display: block;
+    min-height: 46px;
+    border: 1px solid #d8ded8;
+    border-radius: 8px;
+    background: #f7faf7;
+    color: #17352e;
+    font-size: 0.82rem;
+    font-weight: 900;
+    padding: 0;
+  }
+
+  .stepButton:first-child {
+    border-bottom: 1px solid #d8ded8;
+  }
+
+  .clearNumberButton {
+    background: #fff7f0;
+    color: #8f4d19;
+    font-size: 0.74rem;
   }
 
   .otherAssetGrid {

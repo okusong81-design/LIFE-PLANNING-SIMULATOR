@@ -1237,6 +1237,16 @@ function App() {
     });
   }
 
+  function clearNumberField(field) {
+    const clearValue = clampValue(0, field);
+    setScenario((current) => normalizeScenarioAfterField(current, field, clearValue));
+    setEditingValues((current) => {
+      const next = { ...current };
+      delete next[field.key];
+      return next;
+    });
+  }
+
   function updateSalaryField(age, key, value) {
     const sanitizedValue = sanitizeNumberInput(value, { min: 0, decimals: 0 });
     const parsedValue = parseInputNumber(sanitizedValue, 0);
@@ -1675,6 +1685,17 @@ function App() {
             },
             "▼",
           ),
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            className: "clearNumberButton",
+            onClick: () => clearNumberField(field),
+            disabled: isDisabled,
+            "aria-label": `${fieldLabel}を消去`,
+          },
+          "消去",
         ),
       ),
     );
