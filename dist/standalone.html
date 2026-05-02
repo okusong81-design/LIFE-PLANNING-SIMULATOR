@@ -1443,6 +1443,17 @@ thead th:nth-child(4)::after {
   line-height: 1.75;
 }
 
+.commentaryBody {
+  display: grid;
+  gap: 14px;
+  color: #4c5a55;
+  line-height: 1.85;
+}
+
+.commentaryBody p {
+  margin: 0;
+}
+
 @media (min-width: 881px) {
   .resultPanel {
     justify-content: flex-start;
@@ -2503,6 +2514,19 @@ const infoPages = {
       },
     ],
   },
+  commentary: {
+    title: "解説",
+    lead: "本ツールの考え方",
+    paragraphs: [
+      "本ツールは、ツール開発者自らの資産管理に対する考え方に基づき開発したものです。",
+      "実際には、世界情勢や自らの環境変化等さまざまな要因が資産に影響を与えます。",
+      "これらすべてを考慮に入れたうえで自身で計算ソフトを用いて資産推移等を計算することは易しくありません。",
+      "また、家や車を買えば現金はなくなりますが、その分資産として残ります。",
+      "しかしながら、その資産価値は永遠ではなく、基本的に年数に応じて市場価値は下がります。",
+      "本ツールは、簡単な入力情報で将来の資産を簡易的にシミュレーションできるものですが、インフレ率や各種資産の減価設定、ローン等の詳細な情報を入力することにより、より実生活に即したものとすることができます。",
+      "ただし、表示された結果は、本ツールの開発者が設定した条件等により将来資産を参考として算出したものであり、将来を保証してくれるものではないことに注意が必要です。",
+    ],
+  },
   disclaimer: {
     title: "免責事項",
     lead: "本アプリは将来資産を概算するためのシミュレーションツールです。",
@@ -2561,7 +2585,10 @@ function InfoPage({ page, onBack }) {
     { className: "panel infoPage" },
     h("div", { className: "infoPageHeader" }, h("h2", null, content.title), h("button", { type: "button", className: "saveButton secondaryActionButton", onClick: onBack }, "シミュレーターへ戻る")),
     h("p", { className: "infoLead" }, content.lead),
-    content.sections.map((section) =>
+    content.paragraphs
+      ? h("div", { className: "commentaryBody" }, content.paragraphs.map((paragraph) => h("p", { key: paragraph }, paragraph)))
+      : null,
+    (content.sections || []).map((section) =>
       h(
         "section",
         { className: "infoSection", key: section.title },
@@ -3513,6 +3540,7 @@ function App() {
           { className: "pageNav", "aria-label": "補助ページ" },
           h("button", { type: "button", className: activePage === "app" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("app") }, "シミュレーター"),
           h("button", { type: "button", className: activePage === "usage" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("usage") }, "使い方"),
+          h("button", { type: "button", className: activePage === "commentary" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("commentary") }, "解説"),
           h("button", { type: "button", className: activePage === "disclaimer" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("disclaimer") }, "免責事項"),
           h("button", { type: "button", className: activePage === "privacy" ? "pageNavButton active" : "pageNavButton", onClick: () => setActivePage("privacy") }, "プライバシー"),
         ),

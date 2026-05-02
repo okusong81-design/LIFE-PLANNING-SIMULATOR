@@ -1428,6 +1428,17 @@ thead th:nth-child(4)::after {
   line-height: 1.75;
 }
 
+.commentaryBody {
+  display: grid;
+  gap: 14px;
+  color: #4c5a55;
+  line-height: 1.85;
+}
+
+.commentaryBody p {
+  margin: 0;
+}
+
 @media (min-width: 881px) {
   .resultPanel {
     justify-content: flex-start;
