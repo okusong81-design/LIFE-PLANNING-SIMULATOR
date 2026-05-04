@@ -48,7 +48,7 @@ const salaryAges = [20, 30, 40, 50, 60];
 
 const mainFields = [
   { key: "currentAge", label: "現在年齢", suffix: "歳", min: 0, max: 120, step: 1, decimals: 0 },
-  { key: "currentAssets", label: "資産（預貯金等）", suffix: "円", min: 1000000, step: 1000000, decimals: 0, roundToStep: true },
+  { key: "currentAssets", label: "資産（預貯金等）", suffix: "円", min: 0, step: 1000000, decimals: 0, roundToStep: true },
   { key: "monthlyIncome", label: "年収（額面）", suffix: "円", min: 0, step: 100000, decimals: 0 },
   { key: "monthlyExpenses", label: "支出（月額・生活費等）", suffix: "円", min: 0, step: 10000, decimals: 0 },
 ];
@@ -112,6 +112,14 @@ function yen(value) {
   if (abs >= 100000000) return `${(value / 100000000).toFixed(1)}億円`;
   if (abs >= 10000) return `${Math.round(value / 10000).toLocaleString("ja-JP")}万円`;
   return `${Math.round(value).toLocaleString("ja-JP")}円`;
+}
+
+function okuManYen(value) {
+  const sign = value < 0 ? "-" : "";
+  const absMan = Math.round(Math.abs(value) / 10000);
+  const oku = Math.floor(absMan / 10000);
+  const man = absMan % 10000;
+  return oku > 0 ? `${sign}${oku}億${man.toLocaleString("ja-JP")}万円` : `${sign}${man.toLocaleString("ja-JP")}万円`;
 }
 
 function parseInputNumber(value, decimals = 0) {
@@ -662,7 +670,7 @@ function getRequiredMonthlyExpenseReduction(input) {
   return Math.ceil(high / 10000);
 }
 
-function getOneManReductionYears(input, projection) {
+function getReductionManPerYear(input, projection) {
   if (!projection.depletionAge) return 0;
   const testProjection = calculateProjection({
     ...input,
@@ -670,7 +678,9 @@ function getOneManReductionYears(input, projection) {
     retirementExpenses: Math.max(0, (Number(input.retirementExpenses) || 0) - 10000),
   });
   const extendedAge = testProjection.depletionAge ?? Number(input.lifeExpectancy);
-  return Math.max(0, extendedAge - projection.depletionAge);
+  const yearsGained = Math.max(0, extendedAge - projection.depletionAge);
+  if (yearsGained < 1) return 0;
+  return Number((1 / yearsGained).toFixed(1));
 }
 
 function getRetirementExpenseIncreaseByReturn(input) {
@@ -693,16 +703,18 @@ function getRetirementExpenseIncreaseByReturn(input) {
   return Math.floor(low / 10000);
 }
 
-function AssetSummaryCard({ projection, deficitStartAge }) {
+function AssetSummaryCard({ projection, deficitStartAge, onOpenBreakdown }) {
   const isDepleted = Boolean(projection.depletionAge);
   const finalBalance = projection.rows.at(-1)?.closingAssets ?? 0;
   const summaryText = isDepleted
     ? `資産寿命：${projection.depletionAge}歳　　赤字開始：${deficitStartAge}歳`
-    : `将来安泰です！　　最終残高：${manYen(finalBalance)}万円`;
+    : null;
   return h(
-    "article",
-    { className: `summaryCard ${isDepleted ? "dangerSummaryCard" : "safeSummaryCard"}` },
-    h("strong", null, summaryText),
+    "button",
+    { type: "button", className: `summaryCard ${isDepleted ? "dangerSummaryCard" : "safeSummaryCard"}`, onClick: onOpenBreakdown },
+    isDepleted
+      ? h("strong", null, summaryText)
+      : [h("strong", { key: "safe" }, "将来安泰です！"), h("span", { key: "balance" }, `最終残高：${okuManYen(finalBalance)}`)],
   );
 }
 
@@ -710,7 +722,7 @@ function getSummaryText(projection, deficitStartAge) {
   const finalBalance = projection.rows.at(-1)?.closingAssets ?? 0;
   return projection.depletionAge
     ? `資産寿命：${projection.depletionAge}歳　　赤字開始：${deficitStartAge}歳`
-    : `将来安泰です！　　最終残高：${manYen(finalBalance)}万円`;
+    : `将来安泰です！\n最終残高：${okuManYen(finalBalance)}`;
 }
 
 function getShareText(projection, deficitStartAge) {
@@ -728,14 +740,14 @@ function getShareText(projection, deficitStartAge) {
   ].join("\n");
 }
 
-function ResultHintCard({ projection, forecastScenario, requiredMonthlyReduction, oneManReductionYears, retirementExpenseIncrease }) {
+function ResultHintCard({ projection, forecastScenario, requiredMonthlyReduction, reductionManPerYear, retirementExpenseIncrease }) {
   const isDepleted = Boolean(projection.depletionAge);
   return h(
     "section",
     { className: "resultHintCard" },
     isDepleted
       ? [
-          h("strong", { key: "title" }, `改善のヒント：支出が${requiredMonthlyReduction.toLocaleString("ja-JP")}万円減れば想定寿命まで持ちます。（1万円あたり${oneManReductionYears}歳）`),
+          h("strong", { key: "title" }, `改善のヒント：支出が${requiredMonthlyReduction.toLocaleString("ja-JP")}万円減れば想定寿命まで持ちます。${reductionManPerYear > 0 ? `（1歳につき${reductionManPerYear.toFixed(1)}万円）` : ""}`),
           h("span", { key: "body" }, "支出を見直して再度将来資産を計算しましょう。"),
         ]
       : [
@@ -1093,8 +1105,8 @@ function App() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isScenarioNameOpen, setIsScenarioNameOpen] = useState(false);
   const [scenarioNameDraft, setScenarioNameDraft] = useState("");
-  const [selectedAssetAge, setSelectedAssetAge] = useState(65);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const [breakdownAge, setBreakdownAge] = useState(65);
   const [editingValues, setEditingValues] = useState({});
   const [loadedSnapshot, setLoadedSnapshot] = useState(() => getScenarioSnapshot(defaultScenario));
   const [pendingScenarioSelection, setPendingScenarioSelection] = useState(null);
@@ -1106,15 +1118,15 @@ function App() {
   const [showDefaultDetailNotice, setShowDefaultDetailNotice] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const projection = useMemo(() => calculateProjection(forecastScenario), [forecastScenario]);
-  const selectedAssetRow = projection.rows.find((row) => row.age === Number(selectedAssetAge));
+  const selectedAssetRow = projection.rows.find((row) => row.age === Number(breakdownAge));
   const selectedBreakdown = getAssetBreakdown(selectedAssetRow, forecastScenario);
   const deficitStartAge = getDeficitStartAgeForDepletion(projection);
   const requiredMonthlyReduction = useMemo(
     () => (projection.depletionAge ? getRequiredMonthlyExpenseReduction(forecastScenario) : 0),
     [forecastScenario, projection.depletionAge],
   );
-  const oneManReductionYears = useMemo(
-    () => (projection.depletionAge ? getOneManReductionYears(forecastScenario, projection) : 0),
+  const reductionManPerYear = useMemo(
+    () => (projection.depletionAge ? getReductionManPerYear(forecastScenario, projection) : 0),
     [forecastScenario, projection],
   );
   const retirementExpenseIncrease = useMemo(
@@ -1508,11 +1520,11 @@ function App() {
     setHasForecastRun(true);
     setIsCalculating(true);
     setShowDefaultDetailNotice(false);
-    const currentSelectedAge = Number(selectedAssetAge);
+    const currentSelectedAge = Number(breakdownAge);
     const minAge = Number(nextForecastScenario.currentAge);
     const maxAge = Math.max(Number(nextForecastScenario.lifeExpectancy), minAge);
     if (currentSelectedAge < minAge || currentSelectedAge > maxAge) {
-      setSelectedAssetAge(Math.min(Math.max(65, minAge), maxAge));
+      setBreakdownAge(Math.min(Math.max(65, minAge), maxAge));
     }
     setActiveTab("chart");
     document.querySelector(".resultPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1525,6 +1537,11 @@ function App() {
 
   function stepChartZoom(direction) {
     setChartZoom((current) => Number(Math.min(Math.max(current + direction * 0.25, 0.75), 2.5).toFixed(2)));
+  }
+
+  function openBreakdownAtAge(age) {
+    setBreakdownAge(Number(age));
+    setIsBreakdownOpen(true);
   }
 
   function shareToX() {
@@ -1949,7 +1966,7 @@ function App() {
         { className: `panel chartPanel resultPanel${hasForecastRun ? "" : " sampleResultPanel"}` },
         !hasForecastRun ? h("div", { className: "sampleOverlay", "aria-hidden": "true" }, "SAMPUL") : null,
         isCalculating ? h("div", { className: "calculatingOverlay", role: "status", "aria-live": "polite" }, "計算中・・・") : null,
-        h(AssetSummaryCard, { projection, deficitStartAge }),
+        h(AssetSummaryCard, { projection, deficitStartAge, onOpenBreakdown: () => openBreakdownAtAge(projection.depletionAge ?? projection.rows.at(-1)?.age ?? forecastScenario.lifeExpectancy) }),
         h(
           "div",
           { className: "panelHeader" },
@@ -2029,13 +2046,21 @@ function App() {
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualIncome)),
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualExpenses)),
                       h("td", { className: "compactMoneyCell" }, compactManYen(row.annualCashflow)),
-                      h("td", { className: "assetEndCell" }, yen(row.closingAssets)),
+                      h(
+                        "td",
+                        { className: "assetEndCell" },
+                        h(
+                          "button",
+                          { type: "button", className: "tableAssetButton", onClick: () => openBreakdownAtAge(row.age), "aria-label": `${row.age}歳時点の資産内訳を表示` },
+                          yen(row.closingAssets),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-        h(ResultHintCard, { projection, forecastScenario, requiredMonthlyReduction, oneManReductionYears, retirementExpenseIncrease }),
+        h(ResultHintCard, { projection, forecastScenario, requiredMonthlyReduction, reductionManPerYear, retirementExpenseIncrease }),
         showDefaultDetailNotice
           ? h(
               "p",
@@ -2171,7 +2196,7 @@ function App() {
             h(
               "div",
               { className: "modalHeader" },
-              h("h2", { id: "breakdown-title" }, `${selectedAssetAge}歳時点の資産内訳`),
+              h("h2", { id: "breakdown-title" }, `${breakdownAge}歳時点の資産内訳`),
               h("button", { type: "button", className: "modalCloseButton", onClick: () => setIsBreakdownOpen(false), "aria-label": "資産内訳を閉じる" }, "×"),
             ),
             h(

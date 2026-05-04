@@ -387,12 +387,15 @@ input:focus {
 
 .summaryCard {
   display: grid;
+  width: 100%;
   gap: 8px;
   flex-shrink: 0;
   margin-bottom: 12px;
   padding: 14px;
+  border: 0;
   border-radius: 8px;
   color: #ffffff;
+  text-align: left;
   box-shadow: 0 14px 35px rgba(32, 49, 43, 0.07);
 }
 
@@ -402,6 +405,10 @@ input:focus {
   font-size: clamp(1.15rem, 2.3vw, 1.55rem);
   font-weight: 900;
   line-height: 1.2;
+}
+
+.summaryCard:hover {
+  filter: brightness(1.04);
 }
 
 .dangerSummaryCard {
@@ -1154,6 +1161,22 @@ thead th:nth-child(4)::after {
 .assetEndCell {
   width: 7.8em;
   font-variant-numeric: tabular-nums;
+}
+
+.tableAssetButton {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: right;
+  font: inherit;
+  font-weight: 800;
+}
+
+.tableAssetButton:hover {
+  color: #2f7d6b;
+  text-decoration: underline;
 }
 
 .dangerRow td {
